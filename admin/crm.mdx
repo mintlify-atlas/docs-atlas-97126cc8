@@ -1,7 +1,7 @@
 ---
-title: "CRM: Patient Outreach and WhatsApp Campaigns"
+title: "CRM: Patient Outreach via WhatsApp Broadcast Lists"
 sidebarTitle: "CRM"
-description: "Select patients by status or search, then send individual WhatsApp messages or copy phone numbers to create a WhatsApp Business broadcast list for bulk outreach."
+description: "Filter patients by status or name, send individual WhatsApp messages, or copy phone numbers to a broadcast list for bulk outreach in WhatsApp Business."
 ---
 
 The CRM module is FemeSalud's patient retention and re-engagement tool. It gives clinicians a fast way to reach out to patients directly from the platform — whether that means sending a single personalized WhatsApp message or assembling a bulk broadcast list for practice-wide campaigns. Outreach can target specific patient segments using status filters or free-text search, keeping communications relevant and reducing unnecessary noise.
@@ -22,10 +22,10 @@ The CRM table is powered by `usePaginatedPatients()` and displays **20 patients 
 ### Search and Filter
 
 <CardGroup cols={2}>
-  <Card title="Search by name" icon="magnifying-glass">
+  <Card title="Search by name" icon="magnifying-glass" href="#search-and-filter">
     Type in the search box to filter the list by patient name in real time. The query is debounced and passed to `usePaginatedPatients()` as the `search` parameter.
   </Card>
-  <Card title="Filter by status" icon="filter">
+  <Card title="Filter by status" icon="filter" href="#search-and-filter">
     Use the status dropdown to narrow results to a specific patient segment. Available values match the `status` column of the `patients` table.
   </Card>
 </CardGroup>
@@ -80,8 +80,7 @@ Only patients that have a phone number recorded are included — patients withou
 Beyond the CRM module, FemeSalud embeds appointment reminder shortcuts directly in the Dashboard and Agenda views. Each upcoming appointment card has a **MessageCircle** button that opens a pre-filled WhatsApp message addressed to the patient:
 
 ```
-Hola *{name}*, le escribimos de *FemeSalud* para recordarle su cita médica
-el día *{date}* a las *{time}* con *{doctor}*.
+Hola *{name}*, le escribimos de *FemeSalud* para recordarle su cita médica el día *{date}* a las *{time}* con *{doctor}*. Por favor, confirme su asistencia respondiendo a este mensaje. ¡Que tenga un excelente día!
 ```
 
 The placeholders are substituted with the patient's name, the appointment date and time, and the assigned doctor's name before the `wa.me` link is constructed. This allows any doctor to send a personalized reminder in one click without leaving the scheduling interface.

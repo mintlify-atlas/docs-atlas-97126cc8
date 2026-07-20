@@ -10,20 +10,17 @@ The **Billing and Collections** module gives your practice a real-time view of e
 
 ## KPI Cards
 
-At the top of the page, four summary cards give a quick snapshot of the practice's financial health. Metrics are drawn from the current month and the two preceding months.
+At the top of the page, three summary cards give a quick snapshot of the practice's financial health. Metrics are drawn from the current month and the two preceding months.
 
-<CardGroup cols={2}>
-  <Card title="Ingresos Totales" icon="trending-up">
+<CardGroup cols={3}>
+  <Card title="Ingresos Totales" icon="trending-up" href="#kpi-cards">
     The sum of all fees collected from appointments with `status = completada` **and** a confirmed `payment_method`. Displayed in USD alongside the number of billed consultations.
   </Card>
-  <Card title="Cuentas por Cobrar" icon="receipt">
+  <Card title="Cuentas por Cobrar" icon="receipt" href="#kpi-cards">
     Outstanding balance across all `programada` appointments that have a price set, plus any `completada` appointments where payment has not yet been confirmed. Shows count of pending consultations.
   </Card>
-  <Card title="Desempeño de Cobranza" icon="sparkles">
+  <Card title="Desempeño de Cobranza" icon="sparkles" href="#kpi-cards">
     A qualitative rating — **Perfecto**, **Excelente**, **Bueno**, or **Atención Requerida** — calculated from the ratio of pending earnings to total potential income, prompting the team to follow up on unconfirmed payments.
-  </Card>
-  <Card title="Citas Cobradas" icon="check-circle">
-    A count of `completada` appointments that have a `payment_method` confirmed, used as the denominator context for the Ingresos Totales card.
   </Card>
 </CardGroup>
 
@@ -52,16 +49,16 @@ A **Confirmar Pago** call-to-action button appears in place of the edit icon spe
 Use the filter bar to narrow the appointment list before acting on or exporting records.
 
 <CardGroup cols={2}>
-  <Card title="Search" icon="magnifying-glass">
+  <Card title="Search" icon="magnifying-glass" href="#filters">
     Free-text search across **patient name** and **appointment reason** (case-insensitive).
   </Card>
-  <Card title="Status" icon="funnel">
+  <Card title="Status" icon="funnel" href="#filters">
     Filter by **Todas**, **Pendientes** (`programada`), or **Cobros Confirmados** (`completada`).
   </Card>
-  <Card title="Mes" icon="calendar">
+  <Card title="Mes" icon="calendar" href="#filters">
     Month picker built dynamically from the dates present in the loaded appointments, formatted as `Mes YYYY` (e.g., *Enero 2025*).
   </Card>
-  <Card title="Médico" icon="user-doctor">
+  <Card title="Médico" icon="user-doctor" href="#filters">
     Visible only when the clinic has more than one registered doctor. Filters to all appointments assigned to the selected physician.
   </Card>
 </CardGroup>
@@ -130,7 +127,7 @@ Clicking the download icon on any **Cobrada** appointment triggers `exportInvoic
 |---|---|
 | **Clinic header** | Address lines, phone number, and RIF (if set in clinic settings) |
 | **Subtitle** | *Consultorio Ginecológico Obstétrico* + clinic trade name |
-| **Receipt number** | `FS-{first 8 characters of appointment ID, uppercased}` (e.g., `FS-A1B2C3D4`) |
+| **Receipt number** | `FS-[first 8 characters of appointment ID, uppercased]` (e.g., `FS-A1B2C3D4`) |
 | **Issue date** | Taken from `scheduled_at` |
 | **Patient data** | Full name, service concept (appointment reason or *Consulta Ginecológica / Obstétrica*) |
 | **Payment details** | Method and reference number (when provided) |
@@ -138,7 +135,7 @@ Clicking the download icon on any **Cobrada** appointment triggers `exportInvoic
 | **Doctor signature** | Treating doctor's full name and specialty, centred below a dashed signature line |
 | **Watermark** | Clinic logo at 4% opacity centred on the page |
 
-The file is saved locally as `Recibo_{PatientName}.pdf`.
+The file is saved locally as `Recibo_[PatientName].pdf`.
 
 <Note>
   The receipt reflects the doctor who is currently logged in at the time of export. If a receptionist exports the receipt, the clinic's default doctor name (*Médico Tratante*) and specialty (*Ginecólogo Obstetra*) will appear on the signature line unless the logged-in profile has a `full_name` and `specialty` set.
@@ -157,4 +154,4 @@ The exported PDF includes:
 - Full appointments table with columns: Fecha, Paciente, Concepto, Monto, Estado, Método, Referencia
 - Status cells colour-coded: green for *Cobrada*, amber for *Pendiente / Por Cobrar*, red for *Cancelada*
 
-The file is saved as `Reporte_Facturacion_{YYYY-MM}.pdf` (or `Reporte_Facturacion_General.pdf` when no month filter is active).
+The file is saved as `Reporte_Facturacion_[YYYY-MM].pdf` (or `Reporte_Facturacion_General.pdf` when no month filter is active).

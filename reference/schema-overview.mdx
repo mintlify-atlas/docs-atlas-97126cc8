@@ -1,7 +1,7 @@
 ---
 title: "Database Schema Overview: All Tables and Relationships"
 sidebarTitle: "Schema Overview"
-description: "FemeSalud uses a PostgreSQL database on Supabase with 10 tables, 2 enums, Row Level Security, and 2 database functions. Review all tables and their relationships here."
+description: "PostgreSQL schema on Supabase: 10 tables, 2 enums, Row Level Security, and 2 database functions covering the full FemeSalud clinical workflow."
 ---
 
 FemeSalud's persistence layer is a PostgreSQL database hosted on Supabase. The `public` schema contains **10 tables** that cover the full clinical workflow — from patient registration and appointment scheduling through consultation records, laboratory results, and clinic configuration. All tables have Row Level Security (RLS) enabled, and two database functions (`has_role` and `is_admin`) are used across RLS policies to enforce access control without duplicating logic.
@@ -29,7 +29,7 @@ FemeSalud's persistence layer is a PostgreSQL database hosted on Supabase. The `
     Free-form clinical notes scoped to a patient. Supports file attachments stored in the `clinical-attachments` Supabase Storage bucket.
   </Card>
   <Card title="profiles" icon="id-card">
-    Doctor and admin user profiles. Extends `auth.users` with display name, specialty, and professional registration numbers (MPPS, CMC).
+    Doctor and admin user profiles. Extends `auth.users` with display name, specialty, and avatar URL.
   </Card>
   <Card title="user_roles" icon="shield">
     Maps authenticated users to application roles. A user may hold multiple roles. Used as the authoritative source for all RLS policy checks.

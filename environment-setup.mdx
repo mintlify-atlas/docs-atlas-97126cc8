@@ -1,7 +1,7 @@
 ---
-title: "Configure Supabase and Environment Variables"
+title: "Configure Supabase Environment Variables for FemeSalud"
 sidebarTitle: "Environment Setup"
-description: "Set up your Supabase project, apply the database schema, configure required environment variables, and prepare FemeSalud for local development or production."
+description: "Set up your Supabase project, apply the database schema, configure environment variables, and prepare FemeSalud for local development or production."
 ---
 
 Before FemeSalud can serve its first request, several pieces of infrastructure must be in place: a Supabase project with the correct tables and Row Level Security policies, a storage bucket for clinical file attachments, and environment variables wired up on both the client and server. This page covers every configuration step in order — complete them once for local development and repeat the environment variable step for each deployment environment (staging, production) in Vercel.
@@ -13,7 +13,7 @@ FemeSalud uses two separate groups of environment variables: `VITE_`-prefixed va
 ```bash .env
 # ── Client-side (injected by Vite at build time) ─────────────────────────────
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
 
 # ── Server-side (read at request time by auth middleware) ─────────────────────
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -21,7 +21,7 @@ SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
 ```
 
 <Warning>
-  Never commit your `.env` file to version control. Add it to `.gitignore` immediately. Although `VITE_SUPABASE_ANON_KEY` is a **public** key designed for browser use, leaking your full `.env` file can still expose server-only secrets you add later (such as a service role key or third-party API credentials).
+  Never commit your `.env` file to version control. Add it to `.gitignore` immediately. Although `VITE_SUPABASE_PUBLISHABLE_KEY` is a **public** key designed for browser use, leaking your full `.env` file can still expose server-only secrets you add later (such as a service role key or third-party API credentials).
 </Warning>
 
 The table below describes every variable and where to find its value:
@@ -29,7 +29,7 @@ The table below describes every variable and where to find its value:
 | Variable | Side | Description |
 |---|---|---|
 | `VITE_SUPABASE_URL` | Client + Server | Your Supabase project URL. Found in **Project Settings → API → Project URL**. |
-| `VITE_SUPABASE_ANON_KEY` | Client + Server | Supabase `anon` / public key. Found in **Project Settings → API → Project API Keys**. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Client + Server | Supabase `anon` / public key. Found in **Project Settings → API → Project API Keys**. |
 | `SUPABASE_URL` | Server only | Same project URL as above, read by `auth-middleware.ts` at request time. |
 | `SUPABASE_PUBLISHABLE_KEY` | Server only | Same anon key as above, read by `auth-middleware.ts` at request time. |
 
@@ -73,7 +73,6 @@ FemeSalud requires the following tables to exist in the `public` schema. Apply t
 | `profiles` | Extended user profile data linked to Supabase Auth users |
 | `user_roles` | Maps authenticated users to their `admin` or `doctor` role |
 | `prescription_templates` | Saved prescription templates for fast reuse during consultations |
-| `clinic_info` | Clinic-level configuration (name, address, logo, contact details) |
 | `lab_results` | Laboratory result records linked to patients |
 
 <Warning>

@@ -1,7 +1,7 @@
 ---
-title: "Deploy FemeSalud to Vercel with TanStack Start"
+title: "Deploy FemeSalud to Vercel with TanStack Start and Nitro"
 sidebarTitle: "Vercel"
-description: "Deploy FemeSalud to Vercel using TanStack Start and Nitro. Set environment variables, trigger automatic deployments from git push, and serve SSR from Vercel Serverless Functions."
+description: "Deploy FemeSalud to Vercel with TanStack Start. Set Supabase variables and build SSR serverless functions with the Nitro Vercel preset in seconds."
 ---
 
 FemeSalud is built with TanStack Start and Nitro, making Vercel the natural deployment target. Nitro compiles the application into serverless functions that Vercel executes on every request, giving you full SSR with zero cold-start configuration. A single `vercel.json` file at the project root is all Vercel needs to understand the build.
@@ -30,14 +30,15 @@ You can also use `npm run build` if you're not using Bun. Both invoke `vite buil
 
 ## Environment Variables on Vercel
 
-FemeSalud requires four environment variables to connect to Supabase. Add all four in the Vercel dashboard under **Settings → Environment Variables** before your first deployment.
+FemeSalud requires five environment variables to connect to Supabase. Add all five in the Vercel dashboard under **Settings → Environment Variables** before your first deployment.
 
 | Variable | Where it's used |
 | --- | --- |
 | `VITE_SUPABASE_URL` | Client-side Supabase client initialization |
-| `VITE_SUPABASE_ANON_KEY` | Client-side anonymous authentication |
-| `SUPABASE_URL` | Server-side API calls and middleware |
-| `SUPABASE_PUBLISHABLE_KEY` | Server-side publishable key for auth attachment |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Client-side publishable key for Supabase auth |
+| `SUPABASE_URL` | Server-side API calls and auth middleware |
+| `SUPABASE_PUBLISHABLE_KEY` | Server-side publishable key for auth middleware |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin client — bypasses RLS for trusted operations |
 
 <Warning>
   Never commit a `.env` file containing real Supabase credentials to git. Add `.env` and `.env.local` to your `.gitignore`. Credentials exposed in version control cannot be safely rotated by simply deleting the commit — treat any leaked key as permanently compromised.
@@ -81,8 +82,8 @@ Authentication-guarded routes use `ssr: false` in their route configuration. Thi
 Before pointing your domain at the production deployment, verify the following:
 
 <Steps>
-  <Step title="All four environment variables are set in Vercel">
-    Confirm `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY` are present in **Settings → Environment Variables** for the Production scope.
+  <Step title="All five environment variables are set in Vercel">
+    Confirm `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are present in **Settings → Environment Variables** for the Production scope.
   </Step>
   <Step title="Supabase CORS allows your Vercel domain">
     In the Supabase dashboard, go to **Authentication → URL Configuration** and add your Vercel production URL (e.g. `https://femesalud.vercel.app`) to the list of allowed redirect URLs and site URLs.

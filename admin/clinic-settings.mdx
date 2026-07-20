@@ -1,5 +1,5 @@
 ---
-title: "Clinic Settings: Name, Address, Phone, and RIF"
+title: "Clinic Settings: Name, Address, Phone, RIF, and Docs"
 sidebarTitle: "Clinic Settings"
 description: "Configure your clinic's name, address lines, phone number, and RIF. These values appear in the header of every generated PDF document."
 ---
@@ -23,22 +23,22 @@ export interface ClinicInfo {
 ```
 
 <CardGroup cols={2}>
-  <Card title="name" icon="building">
+  <Card title="name" icon="building" href="#clinic-info-fields">
     The commercial name of the clinic. Appears as the primary heading in all generated PDFs.
   </Card>
-  <Card title="address_line1" icon="map-pin">
+  <Card title="address_line1" icon="map-pin" href="#clinic-info-fields">
     Full street address including street name, cross streets, and building number.
   </Card>
-  <Card title="address_line2" icon="map">
+  <Card title="address_line2" icon="map" href="#clinic-info-fields">
     City and state. Rendered on a second line beneath the street address.
   </Card>
-  <Card title="phone" icon="phone">
+  <Card title="phone" icon="phone" href="#clinic-info-fields">
     Contact phone numbers. You can include multiple numbers separated by spaces or slashes, e.g. `0412/8299890 0424/4609387`.
   </Card>
-  <Card title="rif" icon="receipt">
+  <Card title="rif" icon="receipt" href="#clinic-info-fields">
     Venezuelan Registro de Información Fiscal identifier. Optional — leave blank if not applicable to your practice type.
   </Card>
-  <Card title="updated_at" icon="clock">
+  <Card title="updated_at" icon="clock" href="#clinic-info-fields">
     Automatically set to the current UTC timestamp on every save. Read-only; managed by `useUpdateClinicInfo()`.
   </Card>
 </CardGroup>

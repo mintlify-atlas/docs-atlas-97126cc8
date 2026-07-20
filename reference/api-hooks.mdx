@@ -1,7 +1,7 @@
 ---
-title: "React Query API Hooks: Complete Reference"
+title: "FemeSalud React Query API Hooks: Complete Reference"
 sidebarTitle: "API Hooks"
-description: "All React Query hooks and utility functions in FemeSalud for patients, appointments, consultations, clinical notes, profiles, clinic info, auth, and realtime sync."
+description: "Complete reference for all React Query hooks in FemeSalud: patients, appointments, consultations, clinical notes, profiles, clinic info, and realtime sync."
 ---
 
 FemeSalud uses TanStack Query (React Query v5) as the single source of truth for all server state. Every data resource exposes query hooks that follow the `use{Resource}()` naming convention, plus mutation hooks for write operations. Mutation hooks implement full optimistic updates — the UI reflects the change immediately, and the cache is reconciled (or rolled back) once the server responds. Realtime updates from Supabase automatically invalidate the relevant queries, so multiple browser tabs always stay in sync without manual refresh.
@@ -95,8 +95,8 @@ Exported from `src/lib/api/patients.ts`. All queries read from the `patients` Su
 
   ```typescript
   function usePaginatedPatients(
-    page: number,
-    pageSize: number,
+    page: number = 1,
+    pageSize: number = 10,
     search?: string,       // matches full_name, email, or document_id (case-insensitive)
     status?: PatientStatus // "activo" | "en_tratamiento" | "alta" | "nuevo"
   ): UseQueryResult<{ data: Patient[]; count: number }>

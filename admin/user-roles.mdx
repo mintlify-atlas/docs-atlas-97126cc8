@@ -1,7 +1,7 @@
 ---
-title: "User Roles and Access Control with Supabase RLS"
+title: "Managing User Roles and Access Control in FemeSalud"
 sidebarTitle: "User Roles"
-description: "FemeSalud uses two roles — admin and doctor — enforced by Supabase Row Level Security. Learn how to assign roles, what each role can access, and how auth works."
+description: "FemeSalud enforces two roles — admin and doctor — via Supabase RLS. Learn role assignment, access boundaries, and how the auth hooks and middleware work."
 ---
 
 FemeSalud enforces a role-based access model backed by Supabase Row Level Security (RLS). Every authenticated user is assigned at least one role — `admin` or `doctor` — stored in the `user_roles` table. RLS policies then restrict what each role can read or write at the database level, so access boundaries are enforced on the server, not just in the UI.
@@ -11,10 +11,10 @@ FemeSalud enforces a role-based access model backed by Supabase Row Level Securi
 The `app_role` PostgreSQL enum defines exactly two values: `admin` and `doctor`. A single user can hold both roles simultaneously — rows are simply added to or removed from `user_roles`.
 
 <CardGroup cols={2}>
-  <Card title="admin" icon="shield">
+  <Card title="admin" icon="shield" href="#the-two-roles">
     Full read and write access to all patients, all appointments, all clinical notes, and all reports across the entire practice. Admins can also manage users, create new accounts, toggle roles, and edit clinic settings. Only the **Datos de la Clínica** tab in Configuración is visible to admins.
   </Card>
-  <Card title="doctor" icon="stethoscope">
+  <Card title="doctor" icon="stethoscope" href="#the-two-roles">
     Scoped access enforced by RLS policies. Doctors see and modify only the patients and appointments assigned to them. They can update their own profile and view their own schedule, but they cannot access clinic-wide settings or other doctors' patient records.
   </Card>
 </CardGroup>

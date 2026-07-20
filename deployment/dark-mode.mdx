@@ -1,5 +1,5 @@
 ---
-title: "Dark Mode: Theme Switching and Persistence"
+title: "Dark Mode: Theme Switching and Persistence in FemeSalud"
 sidebarTitle: "Dark Mode"
 description: "FemeSalud supports light and dark mode. The selected theme persists in localStorage and respects the user's system preference on first visit."
 ---
@@ -19,29 +19,31 @@ After initialization, a `useEffect` watches the `theme` value. Whenever it chang
 ## The useTheme Hook
 
 ```typescript
+import { useEffect, useState } from "react";
+
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme');
-      if (stored === 'dark' || stored === 'light') return stored;
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("theme");
+      if (stored === "dark" || stored === "light") return stored;
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     }
-    return 'light';
+    return "light";
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
+    if (theme === "dark") {
+      root.classList.add("dark");
     } else {
-      root.classList.remove('dark');
+      root.classList.remove("dark");
     }
-    localStorage.setItem('theme', theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  return { theme, toggleTheme, isDark: theme === 'dark' };
+  return { theme, toggleTheme, isDark: theme === "dark" };
 }
 ```
 
@@ -49,7 +51,7 @@ The hook returns three values:
 
 | Return value | Type | Description |
 | --- | --- | --- |
-| `theme` | `'light' \| 'dark'` | The currently active theme string |
+| `theme` | `"light" \| "dark"` | The currently active theme string |
 | `toggleTheme` | `() => void` | Flips between light and dark |
 | `isDark` | `boolean` | Convenience boolean for conditional rendering |
 

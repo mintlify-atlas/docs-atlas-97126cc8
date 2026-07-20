@@ -1,7 +1,7 @@
 ---
 title: "Patients Table: Full Schema and Field Reference"
 sidebarTitle: "Patients Schema"
-description: "Complete field reference for the patients table, including demographics, gynecological data, obstetric history, family antecedents, and personal history stored as JSONB."
+description: "Field reference for the patients table: demographics, gynecological history, obstetric data, and personal background stored as structured JSONB columns."
 ---
 
 The `patients` table is the central entity of the FemeSalud schema. Every appointment, consultation, clinical note, and lab result is ultimately anchored to a patient row. In addition to standard demographic fields, the table stores rich clinical background as structured JSONB columns — covering family history, personal history, gynecological data, and obstetric data — so that the complete medical profile is co-located with the patient record rather than distributed across auxiliary tables.

@@ -11,16 +11,16 @@ The Patients module is the central repository for every person treated at the cl
 Every patient is assigned one of four lifecycle statuses that appear as colour-coded badges throughout the platform:
 
 <CardGroup cols={2}>
-  <Card title="nuevo" icon="sparkles">
+  <Card title="nuevo" icon="sparkles" href="/modules/patients">
     Recently registered patient who has not yet had a completed visit. Default status on creation. Displayed in pink (blush).
   </Card>
-  <Card title="activo" icon="circle-check">
+  <Card title="activo" icon="circle-check" href="/modules/patients">
     Patient with at least one completed visit and no ongoing treatment protocol. Displayed in green (sage).
   </Card>
-  <Card title="en_tratamiento" icon="activity">
+  <Card title="en_tratamiento" icon="activity" href="/modules/patients">
     Patient currently under an active treatment plan (e.g., prenatal control, post-procedure follow-up). Displayed in purple (mauve).
   </Card>
-  <Card title="alta" icon="archive">
+  <Card title="alta" icon="archive" href="/modules/patients">
     Discharged patient — treatment concluded and no follow-up required. Displayed in muted grey. The record is retained in full.
   </Card>
 </CardGroup>
@@ -147,16 +147,16 @@ The Patients page also provides an **Exportar Excel** button that downloads the 
 From the patient detail panel, four PDF documents can be generated:
 
 <CardGroup cols={2}>
-  <Card title="Ficha Médica" icon="file-medical">
+  <Card title="Ficha Médica" icon="file-medical" href="/modules/patients">
     Full patient profile including demographics, gynecological data, obstetric history, and all clinical notes. Exported via `exportFichaMedica`.
   </Card>
-  <Card title="Historia Clínica Completa" icon="clipboard">
+  <Card title="Historia Clínica Completa" icon="clipboard" href="/modules/clinical-records">
     Complete clinical record including all consultations and their details. Exported via `exportFullHistory` from the Clinical Records module.
   </Card>
-  <Card title="Constancia de Reposo" icon="bed">
+  <Card title="Constancia de Reposo" icon="bed" href="/modules/patients">
     Medical rest certificate specifying the number of days, start date, and reason. Exported via `exportReposo`.
   </Card>
-  <Card title="Justificativo" icon="file-text">
+  <Card title="Justificativo" icon="file-text" href="/modules/patients">
     Medical justification letter (e.g., work or school absence). Exported via `exportJustificativo`.
   </Card>
 </CardGroup>

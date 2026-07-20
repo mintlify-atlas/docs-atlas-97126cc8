@@ -1,7 +1,7 @@
 ---
-title: "PDF Export Functions: Medical Documents and Reports"
+title: "PDF Export Functions: Clinical Documents Reference"
 sidebarTitle: "PDF Exports"
-description: "FemeSalud generates branded A4 PDF documents using jsPDF and jspdf-autotable. Learn about each export function, its parameters, and the content it produces."
+description: "FemeSalud generates branded A4 PDFs via jsPDF and jspdf-autotable. Reference for all eight export functions, their parameters, and output filenames."
 ---
 
 FemeSalud can produce eight distinct A4 PDF documents — from a full clinical history to a monthly billing report — all sharing a consistent branded layout. Every export function lazy-imports `jsPDF` and `jspdf-autotable` at call time so neither library adds weight to the initial application bundle. Each document is rendered in the Times typeface, carries the clinic header and logo at the top of the first page, and closes every page with a centered logo watermark at 4 % opacity and a footer that includes the generation timestamp.
@@ -15,12 +15,12 @@ Every PDF opens with the same header block assembled from the clinic's settings.
 | Logo | Top-left, 75 × 75 pt | Fetched as a base64 PNG via `loadLogoBase64('/logo.png')` |
 | Address line 1 | Centered, top | `clinic.address_line1` |
 | Address line 2 | Centered, below address 1 | `clinic.address_line2` |
-| Phone / RIF | Centered | `Teléfono: {phone}` — RIF appended with ` \| RIF: {rif}` when set |
+| Phone / RIF | Centered | `Teléfono: [phone]` — RIF appended with `\| RIF: [rif]` when set |
 | Consultorio label | Centered | `"Consultorio Ginecológico Obstétrico"` |
 | Clinic name | Centered, italic, 17.5 pt | `clinic.name` |
 | Date | Right-aligned | `DD / MM / AAAA` format, printed on every first page |
 | Watermark | Page center, all pages | Logo at 550 × 550 pt, 4 % opacity via `GState` |
-| Footer | Bottom of every page | `FemeSalud — Generado el {timestamp}` · `Página N de Total` |
+| Footer | Bottom of every page | `FemeSalud — Generado el [timestamp]` · `Página N de Total` |
 
 <Note>
   All PDF export functions are `async` and dynamically import `jsPDF` (and `jspdf-autotable` where needed) using `Promise.all([import('jspdf'), import('jspdf-autotable')])`. This keeps both libraries out of the main bundle and loads them only when the user actually triggers a document export.
@@ -80,7 +80,7 @@ export const exportFichaMedica = async (
   </Step>
 </Steps>
 
-**Filename:** `Ficha_{full_name}.pdf` (spaces replaced with underscores)
+**Filename:** `Ficha_[full_name].pdf` (spaces replaced with underscores)
 
 ---
 
@@ -131,7 +131,7 @@ export const exportFullHistory = async (
   </Step>
 </Steps>
 
-**Filename:** `Historia_Clinica_{full_name}.pdf`
+**Filename:** `Historia_Clinica_[full_name].pdf`
 
 ---
 
@@ -192,7 +192,7 @@ export const exportReposo = async (
 
 The certificate body certifies that the named patient was examined, states the diagnosis, specifies the number of rest days, and provides the start date. A dashed signature line is drawn at `y = 590 pt` followed by the doctor's name, specialty, university, and MPPS / CMC registration numbers.
 
-**Filename:** `Reposo_{full_name}.pdf`
+**Filename:** `Reposo_[full_name].pdf`
 
 ---
 
@@ -216,7 +216,7 @@ export const exportInvoice = async (
 <ParamField path="app" type="AppointmentWithPatient" required>
   The appointment record that drives the receipt. Key fields used:
 
-  - `id` — first 8 characters (uppercased) form the receipt number: `FS-{id[:8]}`
+  - `id` — first 8 characters (uppercased) form the receipt number: `FS-[id_first8]`
   - `scheduled_at` — used as the emission date
   - `patient_name` — displayed in the patient data block
   - `reason` — service description in the line-item table
@@ -235,9 +235,9 @@ export const exportInvoice = async (
 
 ### Document Content
 
-The receipt opens with the standard clinic header, then shows the receipt number (`FS-{id[:8].toUpperCase()}`) top-left and the emission date top-right. The patient data block lists the patient name, service concept, payment method, and reference number. A ruled table shows the service description and amount, followed by a bold total line. The physician signs at the bottom.
+The receipt opens with the standard clinic header, then shows the receipt number (`FS-` followed by the first 8 characters of the appointment ID uppercased) top-left and the emission date top-right. The patient data block lists the patient name, service concept, payment method, and reference number. A ruled table shows the service description and amount, followed by a bold total line. The physician signs at the bottom.
 
-**Filename:** `Recibo_{patient_name}.pdf`
+**Filename:** `Recibo_[patient_name].pdf`
 
 ---
 
@@ -289,14 +289,14 @@ export const generateRecipePDF = async (
 </ParamField>
 
 <ParamField path="action" type='"save" | "whatsapp"'>
-  `"save"` (default) downloads the PDF via `doc.save()`. `"whatsapp"` uploads the PDF blob to the `clinical-attachments` Supabase Storage bucket, generates a 7-day signed URL, and opens `wa.me/{phone}` with the link pre-filled. If the patient has no phone on record the link is copied to the clipboard instead.
+  `"save"` (default) downloads the PDF via `doc.save()`. `"whatsapp"` uploads the PDF blob to the `clinical-attachments` Supabase Storage bucket, generates a 7-day signed URL, and opens `wa.me/[phone]` with the link pre-filled. If the patient has no phone on record the link is copied to the clipboard instead.
 </ParamField>
 
 ### Document Content
 
 The header follows the shared clinic layout (logo at 65 × 65 pt). Below the title **RÉCIPE / INDICACIONES**, the patient's name, age (calculated from `birth_date`), and cédula are displayed on underlined lines. The `indications` text is word-wrapped at 455 pt. If the text overflows past `y = 660`, a new page is added with a compact running header showing patient name and date. The doctor signature block is always placed at `y = 700 pt` on the last page.
 
-**Filename:** `Recipe_{clean_name}_{YYYYMMDD}.pdf` (accents stripped, non-alphanumeric characters replaced with underscores)
+**Filename:** `Recipe_[clean_name]_[YYYYMMDD].pdf` (accents stripped, non-alphanumeric characters replaced with underscores)
 
 ---
 
@@ -326,6 +326,20 @@ export const exportConstanciaAtencion = async (
   Patient's `full_name` and `document_id` appear in the certificate body. The cédula prefix is resolved automatically.
 </ParamField>
 
+<ParamField path="clinic" type="ClinicInfo | null" required>
+  Used to build the header.
+</ParamField>
+
+<ParamField path="doctorInfo" type="object" required>
+  Physician credential block rendered in the signature area.
+
+  - `name` — full name, bold, centred above the signature line
+  - `specialty` — medical specialty
+  - `uni` — university abbreviation (optional)
+  - `mpps` — MPPS registration number (optional; defaults to underscores)
+  - `cmc` — CMC registration number (optional; defaults to underscores)
+</ParamField>
+
 <ParamField path="atencionReason" type="string" required>
   Medical condition or reason for the visit. Rendered on up to two underlined diagnosis lines.
 </ParamField>
@@ -338,7 +352,7 @@ export const exportConstanciaAtencion = async (
 
 Single-page document addressed *"A quien pueda interesar"*. Certifies examination, states the diagnosis, confirms the attendance date, and closes with *"Constancia que se expide a petición de la persona interesada."* Doctor signature block at `y = 530 pt`.
 
-**Filename:** `Atencion_{full_name}.pdf`
+**Filename:** `Atencion_[full_name].pdf`
 
 ---
 
@@ -369,6 +383,20 @@ export const exportJustificativo = async (
   Patient name and document ID for the certificate body.
 </ParamField>
 
+<ParamField path="clinic" type="ClinicInfo | null" required>
+  Used to build the header.
+</ParamField>
+
+<ParamField path="doctorInfo" type="object" required>
+  Physician credential block rendered in the signature area.
+
+  - `name` — full name, bold, centred above the signature line
+  - `specialty` — medical specialty
+  - `uni` — university abbreviation (optional)
+  - `mpps` — MPPS registration number (optional; defaults to underscores)
+  - `cmc` — CMC registration number (optional; defaults to underscores)
+</ParamField>
+
 <ParamField path="justificativoReason" type="string" required>
   Diagnosis or medical reason, split across up to two underlined lines.
 </ParamField>
@@ -385,7 +413,7 @@ export const exportJustificativo = async (
 
 Single-page document. Body text certifies that the patient attended on the given date, that treatment and rest were prescribed for the stated number of days, and that their absence from daily activities is therefore justified. Doctor signature block at `y = 570 pt` with name, specialty, university, MPPS, and CMC.
 
-**Filename:** `Justificativo_{full_name}.pdf`
+**Filename:** `Justificativo_[full_name].pdf`
 
 ---
 
@@ -409,7 +437,7 @@ export const exportMonthlyReport = async (
 </ParamField>
 
 <ParamField path="monthFilter" type="string" required>
-  The `key` of the currently selected month (e.g. `"2024-11"`). When matched in `monthOptions`, the report title becomes `"REPORTE DE FACTURACIÓN - {label}"`.
+  The `key` of the currently selected month (e.g. `"2024-11"`). When matched in `monthOptions`, the report title becomes `"REPORTE DE FACTURACIÓN - [LABEL]"` (the full string is uppercased).
 </ParamField>
 
 <ParamField path="clinic" type="ClinicInfo | null" required>
@@ -430,4 +458,4 @@ After the clinic header, a **Resumen Financiero** block shows:
 
 A seven-column `autoTable` follows, listing: date, patient name, concept, amount, status, payment method, and reference number. Status cells are colour-coded — green (`#2E7D32`) for **Cobrada**, amber (`#C57A00`) for **Por Cobrar / Pendiente**, and red (`#D32F2F`) for **Cancelada**.
 
-**Filename:** `Reporte_Facturacion_{monthKey}.pdf` or `Reporte_Facturacion_General.pdf` when no month is matched.
+**Filename:** `Reporte_Facturacion_[monthKey].pdf` or `Reporte_Facturacion_General.pdf` when no month is matched.

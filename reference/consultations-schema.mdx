@@ -1,7 +1,7 @@
 ---
 title: "Consultations Table: Clinical Data Fields and RPCs"
 sidebarTitle: "Consultations Schema"
-description: "Full field reference for consultations — vitals, physical exam, colposcopy, obstetric control, treatment plan, and consumables. Created and updated via Supabase RPC."
+description: "Field reference for consultations: vitals, physical exam, colposcopy, obstetric control, treatment plan, and consumables. Always written via Supabase RPC."
 ---
 
 The `consultations` table is the richest clinical object in FemeSalud. A consultation is always linked to a parent appointment and captures the full encounter record: chief complaint, complete vitals, systematic physical examination, colposcopy findings, obstetric control measurements, and the treatment plan including diagnosis, indications, and follow-up date. Because a consultation may also consume materials (gloves, swabs, reagents), consumable line items are stored in a child table (`consultation_consumables`) and are always written atomically with the consultation itself through dedicated Supabase RPC functions.

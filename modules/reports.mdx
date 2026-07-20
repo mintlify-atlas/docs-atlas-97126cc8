@@ -13,10 +13,10 @@ The **Reports** module is the analytics hub of FemeSalud, transforming raw appoi
 All statistics, charts, and tables on the Reports page respond to a single date range selector at the top of the view.
 
 <CardGroup cols={2}>
-  <Card title="Custom Range" icon="calendar-range">
+  <Card title="Custom Range" icon="calendar-range" href="#date-range-filter">
     Two date pickers (**Desde** / **Hasta**) let you define an exact start and end date. The page defaults to the last 90 days on load.
   </Card>
-  <Card title="Quick Presets" icon="bolt">
+  <Card title="Quick Presets" icon="bolt" href="#date-range-filter">
     Three shortcut buttons instantly reframe the analysis: **7 días**, **30 días**, and **90 días** — each sets the end date to today and the start date accordingly.
   </Card>
 </CardGroup>
@@ -36,16 +36,16 @@ All statistics, charts, and tables on the Reports page respond to a single date 
     ### KPI Cards
 
     <CardGroup cols={2}>
-      <Card title="Citas en Rango" icon="calendar-clock">
+      <Card title="Citas en Rango" icon="calendar-clock" href="#report-tabs">
         Total number of appointments (any status) whose `scheduled_at` falls within the selected date range.
       </Card>
-      <Card title="Completadas" icon="circle-check">
+      <Card title="Completadas" icon="circle-check" href="#report-tabs">
         Count of appointments with `status = completada` in the selected range.
       </Card>
-      <Card title="Pacientes Nuevos" icon="users">
+      <Card title="Pacientes Nuevos" icon="users" href="#report-tabs">
         Number of patient records created within the selected date range, sourced from `usePatientsCountByDateRange`.
       </Card>
-      <Card title="Ingresos" icon="dollar-sign">
+      <Card title="Ingresos" icon="dollar-sign" href="#report-tabs">
         Sum of fees from all `completada` appointments with a price set in the selected range. Displayed in USD.
       </Card>
     </CardGroup>
@@ -90,7 +90,7 @@ All statistics, charts, and tables on the Reports page respond to a single date 
 
     | Column | Description |
     |---|---|
-    | **Canal** | Channel name as entered on the consultation (e.g., WhatsApp, Instagram, Facebook, Radio, Recomendado) |
+    | **Canal** | Channel name as recorded on the consultation |
     | **Consultas** | Number of consultations where this channel was recorded |
     | **Porcentaje** | Share of all consultations with a recorded channel (e.g., `42.3%`) |
 
@@ -109,7 +109,7 @@ All statistics, charts, and tables on the Reports page respond to a single date 
 Clicking **Exportar Reporte Ejecutivo** calls `exportPDF()`, which dynamically imports `jsPDF` and `jspdf-autotable` to build a multi-page A4 document. The report is saved as:
 
 ```
-femesalud-reporte-ejecutivo-{from}-{to}.pdf
+femesalud-reporte-ejecutivo-[from]-[to].pdf
 ```
 
 For example: `femesalud-reporte-ejecutivo-2025-01-01-2025-03-31.pdf`
@@ -150,7 +150,7 @@ Every page of the PDF includes:
 
 ## Marketing Channels Reference
 
-The `contact_channel` field on a consultation record tracks the acquisition source for each patient visit. Staff should select the appropriate value when registering a consultation. Common channels include:
+The `contact_channel` field on a consultation record tracks the acquisition source for each patient visit. Staff select the appropriate value from a fixed list when registering a consultation.
 
 | Channel | Description |
 |---|---|
@@ -159,5 +159,6 @@ The `contact_channel` field on a consultation record tracks the acquisition sour
 | **Facebook** | Reached via Facebook page or ads |
 | **Radio** | Heard about the clinic through a radio broadcast |
 | **Recomendado** | Referred by another patient, friend, or colleague |
-
-Additional free-text values are supported — whatever is entered in the `contact_channel` field will be grouped and surfaced in the marketing tab automatically.
+| **Prensa** | Learned about the clinic through a newspaper or press outlet |
+| **Volante** | Received a printed flyer or leaflet |
+| **Otro** | Any other acquisition source not covered by the above |

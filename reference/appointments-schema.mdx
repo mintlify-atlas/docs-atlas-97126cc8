@@ -1,7 +1,7 @@
 ---
 title: "Appointments Table: Schema, Statuses, and Filters"
 sidebarTitle: "Appointments Schema"
-description: "Field reference for the appointments table including scheduling fields, payment information, status values, and the AppointmentFilters interface for querying."
+description: "Field reference for the appointments table: scheduling, payment data, status lifecycle, and the AppointmentFilters interface for server-side querying."
 ---
 
 The `appointments` table is the scheduling backbone of FemeSalud. Each row represents a single booked visit — pairing a patient with the doctor who will see them at a specific date and time. Beyond scheduling, appointments also carry optional payment data (amount, method, and reference), making the table the primary source of truth for the practice's revenue tracking. A completed appointment can be linked to exactly one consultation record, which is used throughout the UI to indicate whether clinical notes have been filed for the visit.

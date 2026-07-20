@@ -1,5 +1,5 @@
 ---
-title: "Get Started with FemeSalud in 5 Steps"
+title: "Get Started with FemeSalud: Local Setup in 5 Steps"
 sidebarTitle: "Quickstart"
 description: "Clone FemeSalud, connect your Supabase project, configure environment variables, and run the dev server locally in under 10 minutes."
 ---
@@ -39,7 +39,7 @@ This guide walks you through getting FemeSalud running on your local machine fro
 
     ```bash .env
     VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-    VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+    VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
     ```
 
     You can find both values in your Supabase dashboard:
@@ -47,7 +47,7 @@ This guide walks you through getting FemeSalud running on your local machine fro
     1. Open [app.supabase.com](https://app.supabase.com) and select your project.
     2. Go to **Project Settings** → **API**.
     3. Copy the **Project URL** into `VITE_SUPABASE_URL`.
-    4. Copy the **`anon` / `public`** key into `VITE_SUPABASE_ANON_KEY`.
+    4. Copy the **`anon` / `public`** key into `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
     <Note>
       The `VITE_` prefix is required. Vite injects these values at build time for client-side access via `import.meta.env`. The app also reads `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (without the prefix) for server-side middleware. See [Environment Setup](/environment-setup) for the full variable reference.

@@ -11,16 +11,16 @@ The Agenda module is the scheduling hub of FemeSalud. It provides four complemen
 Use the **Calendario / Lista** toggle in the top-right header to switch between the calendar and list modes. Within Calendar mode, a secondary toggle offers three sub-views.
 
 <CardGroup cols={2}>
-  <Card title="Day View" icon="calendar-day">
+  <Card title="Day View" icon="calendar-day" href="/modules/agenda">
     A two-panel layout: a date info card on the left (showing the selected day, weekday name, and a "Programar Cita" button) and a timeline on the right listing all appointments for that day sorted by time. Each appointment shows a coloured bullet on the timeline line. Click any day in the Month view to jump directly to its Day view.
   </Card>
-  <Card title="Week View" icon="calendar-range">
+  <Card title="Week View" icon="calendar-range" href="/modules/agenda">
     A seven-column grid (Monday–Sunday) displaying all appointments per day as compact cards. The current day column is visually highlighted. You can drag and drop an appointment card onto a different day column to reschedule it — the system calls `useUpdateAppointment` with the new ISO date while preserving the original time.
   </Card>
-  <Card title="Month View" icon="calendar">
+  <Card title="Month View" icon="calendar" href="/modules/agenda">
     A 6-week (42-cell) grid. Each cell shows up to a few appointment chips for that date. Clicking a cell opens the Day view for that date; clicking an empty area within a cell pre-fills the appointment form with that date. Drag-and-drop rescheduling is also supported.
   </Card>
-  <Card title="List View" icon="list">
+  <Card title="List View" icon="list" href="/modules/agenda">
     Appointments grouped by date (newest group first) and paginated at 15 groups per page. Three scope filters appear in list mode: **Hoy** (today only), **Semana** (next 7 days), and **Todas**. Useful for bulk review or export planning.
   </Card>
 </CardGroup>
@@ -34,15 +34,12 @@ Click **Nueva cita** (top-right button) or click directly on any empty calendar 
 | Field | Type | Notes |
 |---|---|---|
 | `patient_id` | Select (search) | Required. Searches the `patients` table. |
-| `doctor_id` | Select | Required. Lists all profiles with the doctor role. |
+| `doctor_id` | Select | Required (admin only). Lists all profiles with the doctor role. |
 | `scheduled_at` | Date + time picker | ISO 8601 stored in UTC. |
-| `duration_minutes` | Number | Default `60`. |
+| `duration_minutes` | Number | Default `30`. |
 | `status` | Select | `programada` \| `completada` \| `cancelada` |
 | `reason` | Text | Visit reason / chief complaint. |
 | `price` | Number | Consultation fee in USD. |
-| `payment_method` | Select | Efectivo, Transferencia, Tarjeta, etc. |
-| `payment_reference` | Text | Reference number for electronic payments. |
-| `notes` | Textarea | Internal notes, not visible to the patient. |
 
 The full TypeScript type used when creating or updating an appointment:
 
@@ -51,7 +48,7 @@ export type AppointmentInput = {
   patient_id: string;
   doctor_id: string;
   scheduled_at: string; // ISO 8601
-  duration_minutes?: number; // default 60
+  duration_minutes?: number; // default 30
   status?: string; // 'programada' | 'completada' | 'cancelada'
   reason?: string | null;
   notes?: string | null;
@@ -66,13 +63,13 @@ export type AppointmentInput = {
 Every appointment carries one of three statuses that drive colour coding throughout the calendar.
 
 <CardGroup cols={3}>
-  <Card title="programada" icon="clock">
+  <Card title="programada" icon="clock" href="/modules/agenda">
     Scheduled — appointment is upcoming and confirmed. Displayed in purple (mauve) across all views.
   </Card>
-  <Card title="completada" icon="circle-check">
+  <Card title="completada" icon="circle-check" href="/modules/agenda">
     Completed — the patient attended and the visit is closed. Displayed in green (sage). A completed appointment can be opened to attach or review its consultation record.
   </Card>
-  <Card title="cancelada" icon="circle-x">
+  <Card title="cancelada" icon="circle-x" href="/modules/agenda">
     Cancelled — the appointment will not take place. Displayed in red (destructive). Cancelled appointments remain in the system for reporting purposes.
   </Card>
 </CardGroup>
@@ -95,7 +92,7 @@ Hola *[full_name]*, le escribimos de *FemeSalud* para recordarle su cita médica
 el día *[weekday, day month]* a las *[HH:MM]* con *[doctor name]*.
 Por favor, confirme su asistencia respondiendo a este mensaje. ¡Que tenga un excelente día!
 ```
-4. Opens `https://wa.me/{cleanPhone}?text={encodedMessage}` in a new tab.
+4. Opens `https://wa.me/[cleanPhone]?text=[encodedMessage]` in a new tab.
 
 If the patient has no phone number on record, a toast error is shown instead.
 

@@ -11,10 +11,10 @@ The Clinical Records module (Historias Clínicas) provides a unified, read-optim
 The screen is divided into two main areas inside a responsive grid:
 
 <CardGroup cols={2}>
-  <Card title="Left Panel — Patient Sidebar" icon="sidebar">
+  <Card title="Left Panel — Patient Sidebar" icon="sidebar" href="/modules/clinical-records">
     A scrollable, searchable list of all patients (paginated at 20 per page). A search box filters by `full_name`, `email`, or `document_id` with a 350 ms debounce. Clicking a patient row loads their full clinical record in the right panel. Pagination controls navigate between sidebar pages.
   </Card>
-  <Card title="Right Panel — Record Viewer" icon="file-medical">
+  <Card title="Right Panel — Record Viewer" icon="file-medical" href="/modules/clinical-records">
     A tabbed view with four tabs: **Cronología de Consultas**, **Ginecología y Obstetricia**, **Antecedentes Clínicos**, and **Ficha de Identificación**. An **Exportar Expediente** button in the header exports the full history as a PDF.
   </Card>
 </CardGroup>
@@ -82,7 +82,7 @@ Accepted file formats: `image/*` (JPEG, PNG, WebP, etc.) and `application/pdf`.
 
 ### File Attachments
 
-Files are uploaded to Supabase Storage in the `clinical-attachments` bucket under the path `{patient_id}/{timestamp}_{random}_{filename}`. The `ClinicalAttachment` interface used for each file is:
+Files are uploaded to Supabase Storage in the `clinical-attachments` bucket under the path `[patient_id]/[timestamp]_[random]_[filename]`. The `ClinicalAttachment` interface used for each file is:
 
 ```typescript
 export interface ClinicalAttachment {
