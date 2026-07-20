@@ -1,0 +1,135 @@
+---
+title: "Database Schema Overview: All Tables and Relationships"
+sidebarTitle: "Schema Overview"
+description: "FemeSalud uses a PostgreSQL database on Supabase with 10 tables, 2 enums, Row Level Security, and 2 database functions. Review all tables and their relationships here."
+---
+
+FemeSalud's persistence layer is a PostgreSQL database hosted on Supabase. The `public` schema contains **10 tables** that cover the full clinical workflow — from patient registration and appointment scheduling through consultation records, laboratory results, and clinic configuration. All tables have Row Level Security (RLS) enabled, and two database functions (`has_role` and `is_admin`) are used across RLS policies to enforce access control without duplicating logic.
+
+<Note>
+  The schema is managed directly in the Supabase dashboard. There are no SQL migration files tracked in the application repository — all DDL changes must be applied through the Supabase Studio or the Supabase CLI project linked to the production instance.
+</Note>
+
+## Tables
+
+<CardGroup cols={2}>
+  <Card title="patients" icon="user">
+    Core patient registry. Stores demographics, gynecological history, obstetric history, family antecedents, and personal history as structured JSONB fields.
+  </Card>
+  <Card title="appointments" icon="calendar">
+    Scheduled visits linking a patient to a doctor. Tracks datetime, duration, status, and payment information including method and reference.
+  </Card>
+  <Card title="consultations" icon="stethoscope">
+    Detailed clinical encounter records attached to an appointment. Contains vitals, physical exam findings, colposcopy data, obstetric control, and treatment plan.
+  </Card>
+  <Card title="consultation_consumables" icon="box">
+    Line-item materials consumed during a consultation. Always written atomically with their parent consultation via Supabase RPC.
+  </Card>
+  <Card title="clinical_notes" icon="note-sticky">
+    Free-form clinical notes scoped to a patient. Supports file attachments stored in the `clinical-attachments` Supabase Storage bucket.
+  </Card>
+  <Card title="profiles" icon="id-card">
+    Doctor and admin user profiles. Extends `auth.users` with display name, specialty, and professional registration numbers (MPPS, CMC).
+  </Card>
+  <Card title="user_roles" icon="shield">
+    Maps authenticated users to application roles. A user may hold multiple roles. Used as the authoritative source for all RLS policy checks.
+  </Card>
+  <Card title="prescription_templates" icon="file-medical">
+    Reusable prescription and indication templates created by doctors. Speeds up consultation data entry by pre-filling common indications.
+  </Card>
+  <Card title="clinic_info" icon="hospital">
+    Single-row configuration table for the practice. Stores the clinic name, address lines, phone number, and tax ID (RIF).
+  </Card>
+  <Card title="lab_results" icon="flask">
+    Laboratory test results linked to both an appointment and a patient. Tracks test type, status, result text, result date, and an optional file URL.
+  </Card>
+</CardGroup>
+
+## Enums
+
+Two PostgreSQL enums are defined in the `public` schema.
+
+### `app_role`
+
+Controls which role a user entry in `user_roles` represents.
+
+```typescript
+type app_role = "admin" | "doctor";
+```
+
+| Value   | Description                                                        |
+| ------- | ------------------------------------------------------------------ |
+| `admin` | Full access to all records, clinic settings, and user management.  |
+| `doctor` | Scoped access — sees only their own patients and appointments.    |
+
+### `visit_type_enum`
+
+Classifies the clinical purpose of a consultation.
+
+```typescript
+type visit_type_enum =
+  | "CONTROL"
+  | "EMERGENCIA"
+  | "CONSULTA_NUEVA"
+  | "POST_TRATAMIENTO"
+  | "OTRO";
+```
+
+| Value              | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `CONTROL`          | Routine follow-up or monitoring visit.         |
+| `EMERGENCIA`       | Unscheduled or urgent emergency visit.         |
+| `CONSULTA_NUEVA`   | First consultation for a new clinical concern. |
+| `POST_TRATAMIENTO` | Post-treatment review.                         |
+| `OTRO`             | Any other visit type not covered above.        |
+
+## Database Functions
+
+Two helper functions are exposed in the `public` schema and called from RLS policies across tables.
+
+### `has_role(_role app_role, _user_id uuid) → boolean`
+
+Returns `true` when the given user holds the specified role in `user_roles`.
+
+```sql
+SELECT has_role('admin', auth.uid());
+```
+
+### `is_admin(_user_id uuid) → boolean`
+
+Convenience wrapper around `has_role` that specifically checks for the `admin` role.
+
+```sql
+SELECT is_admin(auth.uid());
+```
+
+## Key Relationships
+
+The diagram below describes the foreign-key graph between the core tables.
+
+```
+patients
+  ├── appointments          (appointments.patient_id → patients.id)
+  │     ├── consultations   (consultations.appointment_id → appointments.id)
+  │     │     └── consultation_consumables
+  │     │           (consultation_consumables.consultation_id → consultations.id)
+  │     └── lab_results     (lab_results.appointment_id → appointments.id)
+  └── clinical_notes        (clinical_notes.patient_id → patients.id)
+```
+
+All `consultations` also carry a direct `patient_id` foreign key to `patients` for queries that do not need to traverse through `appointments`.
+
+Similarly, `lab_results` carries both `appointment_id` and `patient_id` to support direct patient-scoped queries without joining through appointments.
+
+## Row Level Security
+
+RLS is **enabled on every table** in the `public` schema. The enforcement model follows two tiers:
+
+- **Admins** — rows returned by the `is_admin()` function see all records across all tables.
+- **Doctors** — rows visible to a given doctor are limited to patients assigned to them (`assigned_doctor_id = auth.uid()`) and appointments where `doctor_id = auth.uid()`. Cascading joins restrict consultation and lab result visibility accordingly.
+
+Role membership is always resolved through the `user_roles` table using the `has_role()` function, keeping RLS policies consistent and avoiding hard-coded role strings scattered across policies.
+
+<Tip>
+  When testing locally with the Supabase CLI, use a service-role key to bypass RLS and inspect raw table contents during development. Never expose the service-role key to the client.
+</Tip>

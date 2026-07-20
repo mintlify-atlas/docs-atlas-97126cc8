@@ -1,0 +1,78 @@
+---
+title: "FemeSalud: Clinical Suite for Gynecology & Obstetrics"
+sidebarTitle: "Introduction"
+description: "FemeSalud is a full-stack SaaS platform for gynecology and obstetrics clinics. Manage patients, appointments, consultations, billing, and PDF exports — all in one place."
+---
+
+FemeSalud is a premium clinical management platform built exclusively for gynecology and obstetrics practices. It replaces fragmented paper records and generic practice management tools with a unified digital workspace — giving doctors and clinic admins a single place to track patients, schedule appointments, document consultations, record lab results, and generate billing reports. Whether you run a solo practice or a multi-doctor clinic, FemeSalud delivers clinical-grade security with the speed and polish of a modern web application.
+
+## Core Modules
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="chart-line" href="/modules/dashboard">
+    Real-time overview of daily appointments, revenue metrics, and clinic activity at a glance.
+  </Card>
+  <Card title="Agenda" icon="calendar-days" href="/modules/agenda">
+    Interactive appointment scheduler with real-time sync across all doctors and clinic staff.
+  </Card>
+  <Card title="Patients" icon="users" href="/modules/patients">
+    Unified patient registry with demographics, contact info, and full medical history access.
+  </Card>
+  <Card title="Clinical Records" icon="file-medical" href="/modules/clinical-records">
+    Digital clinical records with notes, attachments, lab results, and prescription templates.
+  </Card>
+  <Card title="Consultations" icon="stethoscope" href="/modules/consultations">
+    Structured consultation forms for gynecological and obstetric visits, including vitals, exams, diagnosis, and treatment plans.
+  </Card>
+  <Card title="Billing" icon="receipt" href="/modules/billing">
+    Simplified billing management with payment tracking, invoicing, and exportable financial reports.
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+FemeSalud is built on a modern, production-ready stack optimized for performance, developer experience, and clinical reliability:
+
+| Layer | Technology |
+|---|---|
+| UI Framework | React 19 |
+| Routing & SSR | TanStack Start (file-based routing + Nitro) |
+| Database & Auth | Supabase (PostgreSQL + RLS + Realtime) |
+| Styling | Tailwind CSS v4 + Lightning CSS |
+| Package Manager | Bun (recommended) |
+| Deployment | Vercel (Serverless Edge Functions) |
+
+## Role Model & Access Control
+
+FemeSalud enforces a two-role access model managed entirely through Supabase Row Level Security (RLS):
+
+- **`admin`** — Full access to all clinic data: patients, appointments, billing, configuration, doctor management, and reports. Admins can also manage other users.
+- **`doctor`** — Scoped access to their own appointments, the patients they treat, and the consultations and clinical records they author. Doctors cannot access billing configuration or admin-only reports.
+
+Roles are stored in the `user_roles` table in your Supabase database. Every database query is automatically filtered through RLS policies — no application-level filtering can bypass them.
+
+<Note>
+  A newly registered user has no role by default. An `admin` must manually assign the appropriate role via the Supabase dashboard or the in-app user management interface before a user can access the platform. See [Environment Setup](/environment-setup) for how to create the first admin.
+</Note>
+
+## Architectural Decisions
+
+### Server-Side Rendering with TanStack Start & Nitro
+
+FemeSalud uses TanStack Start as its full-stack framework, backed by Nitro for server rendering. This means every initial page load is server-rendered — delivering fast First Contentful Paint, SEO-friendly HTML, and a seamless hydration experience. The server entry point (`src/server.ts`) wraps Nitro's request handler with structured SSR error recovery, so catastrophic failures surface as clean error pages rather than raw JSON blobs.
+
+### Optimistic UI with React Query
+
+All data mutations — creating appointments, updating patient records, closing consultations — use TanStack React Query's optimistic update pattern. Changes appear instantly in the UI while the network request is in flight, and are rolled back automatically on error. This gives clinic staff a snappy, desktop-app feel even on slower connections.
+
+### Live Sync with Supabase Realtime
+
+The Agenda module and Dashboard subscribe to Supabase Realtime channels, so appointment changes made by one user are reflected immediately on all other connected sessions — no polling, no page refresh required. This is critical in multi-doctor clinics where front-desk staff and physicians share a live calendar.
+
+### Auth Middleware on the Server
+
+Server functions requiring authentication use `requireSupabaseAuth` middleware (`src/integrations/supabase/auth-middleware.ts`). It validates the Bearer token from incoming requests, calls `supabase.auth.getClaims()`, and injects the verified `userId` and `claims` into the function context — ensuring protected server-side operations are never executed without a valid session.
+
+<Note>
+  The Supabase client automatically handles token persistence and refresh on the client side using `localStorage`. On the server, sessions are stateless — each request is authenticated independently via the `Authorization` header.
+</Note>

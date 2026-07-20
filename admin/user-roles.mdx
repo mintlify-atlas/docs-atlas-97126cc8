@@ -1,0 +1,118 @@
+---
+title: "User Roles and Access Control with Supabase RLS"
+sidebarTitle: "User Roles"
+description: "FemeSalud uses two roles — admin and doctor — enforced by Supabase Row Level Security. Learn how to assign roles, what each role can access, and how auth works."
+---
+
+FemeSalud enforces a role-based access model backed by Supabase Row Level Security (RLS). Every authenticated user is assigned at least one role — `admin` or `doctor` — stored in the `user_roles` table. RLS policies then restrict what each role can read or write at the database level, so access boundaries are enforced on the server, not just in the UI.
+
+## The Two Roles
+
+The `app_role` PostgreSQL enum defines exactly two values: `admin` and `doctor`. A single user can hold both roles simultaneously — rows are simply added to or removed from `user_roles`.
+
+<CardGroup cols={2}>
+  <Card title="admin" icon="shield">
+    Full read and write access to all patients, all appointments, all clinical notes, and all reports across the entire practice. Admins can also manage users, create new accounts, toggle roles, and edit clinic settings. Only the **Datos de la Clínica** tab in Configuración is visible to admins.
+  </Card>
+  <Card title="doctor" icon="stethoscope">
+    Scoped access enforced by RLS policies. Doctors see and modify only the patients and appointments assigned to them. They can update their own profile and view their own schedule, but they cannot access clinic-wide settings or other doctors' patient records.
+  </Card>
+</CardGroup>
+
+<Note>
+  RLS policies must be enabled in Supabase for role separation to take effect. Without active policies, both roles would have unrestricted access to all rows.
+</Note>
+
+## Role Assignment
+
+Roles live in the `user_roles` table with columns `user_id` (references `auth.users`) and `role` (`app_role` enum). A user can hold multiple roles by having multiple rows.
+
+The `useToggleRole()` mutation handles both granting and revoking roles:
+
+- **Enable** (`enable: true`): calls `supabase.from("user_roles").insert({ user_id, role })`. Duplicate inserts are silently ignored.
+- **Disable** (`enable: false`): calls `supabase.from("user_roles").delete()` matching `user_id` and `role`.
+
+On success, TanStack Query caches for `profiles_with_roles`, `doctors`, and `user_roles` are all invalidated so every subscriber refreshes immediately.
+
+## How Authentication Works
+
+### Client Side
+
+Three hooks in `src/hooks/useAuth.ts` cover the full auth lifecycle:
+
+```typescript
+// Reactive auth state — session, user, and a loading flag
+export function useAuthSession(): AuthState
+
+// Fetch the current user's assigned roles from user_roles
+export function useRoles(): QueryResult<AppRole[]>
+
+// Boolean convenience — true when the user has the "admin" role
+export function useIsAdmin(): boolean
+```
+
+`useAuthSession()` subscribes to `supabase.auth.onAuthStateChange`, so session changes (login, logout, token refresh) propagate reactively across the entire component tree. `useRoles()` is a TanStack Query query that runs only when a user is present (`enabled: !!user`), querying the `user_roles` table scoped to the current `user.id`. `useIsAdmin()` derives a simple boolean from the roles array.
+
+### Server Side
+
+The `requireSupabaseAuth` middleware in `src/integrations/supabase/auth-middleware.ts` secures TanStack Start server functions. For each incoming request it:
+
+<Steps>
+  <Step title="Reads the Authorization header">
+    Expects a `Bearer <token>` header. Throws `Unauthorized` if the header is missing or malformed.
+  </Step>
+  <Step title="Creates a scoped Supabase client">
+    Instantiates a server-side `createClient<Database>` with `persistSession: false` and `autoRefreshToken: false`, forwarding the Bearer token in every downstream request.
+  </Step>
+  <Step title="Validates the token and extracts claims">
+    Calls `supabase.auth.getClaims(token)`. Throws `Unauthorized: Invalid token` if the JWT is expired or tampered with.
+  </Step>
+  <Step title="Injects context">
+    Passes `{ supabase, userId, claims }` into the TanStack Start server function context so downstream handlers never need to repeat the auth handshake.
+  </Step>
+</Steps>
+
+### Route Guard
+
+The `_authenticated/route.tsx` layout route calls `supabase.auth.getSession()` in its `beforeLoad` hook. If no session is found the router throws a redirect to `/auth`, preventing unauthenticated users from mounting any protected page. The Doctores page adds a second layer: it also checks for an `admin` role row in `user_roles`, redirecting non-admins to `/` if they somehow reach the URL directly.
+
+## Database Helper Functions
+
+Two PostgreSQL functions are available for use inside RLS policies or SQL queries:
+
+```sql
+-- Returns true if the given user holds the specified role
+SELECT has_role('admin', '<user-id>');
+
+-- Convenience wrapper — returns true if the user is an admin
+SELECT is_admin('<user-id>');
+```
+
+Both accept a `_user_id uuid` argument, making them safe to call from within RLS `USING` expressions without risk of row-level privilege escalation.
+
+## Adding the First Admin
+
+New Supabase projects have no admin users by default. Bootstrap the first admin by inserting a row directly in the Supabase SQL Editor:
+
+```sql
+INSERT INTO user_roles (user_id, role)
+VALUES ('<your-auth-user-id>', 'admin');
+```
+
+Replace `<your-auth-user-id>` with the UUID from **Supabase → Authentication → Users**. After the insert, the user will see the Doctores page and the Datos de la Clínica tab on their next page load (or after a hard refresh).
+
+<Warning>
+  Without at least one admin user, nobody can access the Doctores management page, create new accounts, or modify clinic settings. If you accidentally remove all admin roles, use the SQL Editor to re-insert the row above.
+</Warning>
+
+## Doctors Management Page
+
+The **Doctores** page (`/doctores`) is restricted to admins and is the primary interface for user management. From this page an admin can:
+
+- View all registered users with their current roles displayed as badges
+- **Create new users** via a dialog form that collects full name, email, password, specialty, and initial role
+- **Toggle the admin role** on any user (except themselves) — promotes or demotes with a single click
+- **Toggle the doctor role** on any user — assigns or removes clinical access
+- **Delete users** permanently via a confirmation dialog
+
+The page uses `useAllProfilesWithRoles()`, which joins `profiles` with `user_roles` client-side and returns a `ProfileWithRoles[]` array. User creation and deletion are handled by `adminCreateUser` and `adminDeleteUser` server functions protected by `requireSupabaseAuth`.

@@ -1,0 +1,100 @@
+---
+title: "CRM: Patient Outreach and WhatsApp Campaigns"
+sidebarTitle: "CRM"
+description: "Select patients by status or search, then send individual WhatsApp messages or copy phone numbers to create a WhatsApp Business broadcast list for bulk outreach."
+---
+
+The CRM module is FemeSalud's patient retention and re-engagement tool. It gives clinicians a fast way to reach out to patients directly from the platform — whether that means sending a single personalized WhatsApp message or assembling a bulk broadcast list for practice-wide campaigns. Outreach can target specific patient segments using status filters or free-text search, keeping communications relevant and reducing unnecessary noise.
+
+## Accessing the Module
+
+Navigate to **CRM** in the sidebar. The module is available to users with either the `admin` or `doctor` role — no special permissions beyond a valid authenticated session are required. The page title reads **CRM y Fidelización**.
+
+## Patient List
+
+The CRM table is powered by `usePaginatedPatients()` and displays **20 patients per page**. Each row shows:
+
+- **Paciente** — the patient's full name
+- **Contacto** — phone number, or `Sin teléfono` if none is recorded
+- **Estado** — current patient status rendered as a pill badge
+- **Acción Rápida** — a direct WhatsApp send button for that individual row
+
+### Search and Filter
+
+<CardGroup cols={2}>
+  <Card title="Search by name" icon="magnifying-glass">
+    Type in the search box to filter the list by patient name in real time. The query is debounced and passed to `usePaginatedPatients()` as the `search` parameter.
+  </Card>
+  <Card title="Filter by status" icon="filter">
+    Use the status dropdown to narrow results to a specific patient segment. Available values match the `status` column of the `patients` table.
+  </Card>
+</CardGroup>
+
+The four filterable statuses are:
+
+| Value | Label |
+|---|---|
+| `nuevo` | Nuevos |
+| `activo` | Activos |
+| `en_tratamiento` | En tratamiento |
+| `alta` | De Alta |
+
+Selecting **Todos los estados** (the default) removes the status filter and returns all patients matching the search query.
+
+## Selecting Patients
+
+- **Single row**: Click anywhere on a row (outside the quick-action button) to toggle selection. A selected row highlights and its checkbox changes to a filled state.
+- **Select all on page**: Click the checkbox in the table header to select every patient currently visible. Clicking it again deselects all.
+- The bulk action button in the toolbar shows a live count: **Generar Lista de Difusión (N)** when more than one patient is selected, or **Enviar Mensaje** when exactly one is selected.
+
+## Sending Messages
+
+### Single Patient
+
+When exactly one patient with a phone number is selected, clicking the action button — or the **Send** icon in that patient's row — opens a new browser tab with a pre-filled WhatsApp link:
+
+```
+https://wa.me/{cleanPhone}?text=Hola {full_name}, le escribimos de FemeSalud...
+```
+
+The phone number is sanitized by stripping all non-digit characters before constructing the URL, ensuring the `wa.me` deep-link format is always valid.
+
+### Bulk Campaign (Multiple Patients)
+
+When two or more patients are selected, clicking **Generar Lista de Difusión** copies a comma-separated list of sanitized phone numbers to the clipboard and shows a success toast:
+
+> *"Números copiados al portapapeles. Pégalos en WhatsApp Business para crear tu lista de difusión."*
+
+Only patients that have a phone number recorded are included — patients without a phone are silently skipped.
+
+<Tip>
+  Paste the copied numbers into **WhatsApp Business → New Broadcast** to reach all selected patients at once. WhatsApp Business allows up to 256 recipients per broadcast list.
+</Tip>
+
+<Note>
+  Patients without a recorded phone number are skipped during bulk outreach. The phone column will display `Sin teléfono` in the CRM table. Make sure to collect phone numbers when registering new patients to maximize campaign reach.
+</Note>
+
+## WhatsApp Reminders from Dashboard and Agenda
+
+Beyond the CRM module, FemeSalud embeds appointment reminder shortcuts directly in the Dashboard and Agenda views. Each upcoming appointment card has a **MessageCircle** button that opens a pre-filled WhatsApp message addressed to the patient:
+
+```
+Hola *{name}*, le escribimos de *FemeSalud* para recordarle su cita médica
+el día *{date}* a las *{time}* con *{doctor}*.
+```
+
+The placeholders are substituted with the patient's name, the appointment date and time, and the assigned doctor's name before the `wa.me` link is constructed. This allows any doctor to send a personalized reminder in one click without leaving the scheduling interface.
+
+## Limitations
+
+<Warning>
+  Before sending any marketing or outreach messages, ensure your practice complies with applicable privacy regulations — including GDPR if you operate in or serve patients from the European Economic Area, and any local Venezuelan data-protection laws. Patients should have provided explicit consent to receive WhatsApp communications from your practice.
+</Warning>
+
+| Limitation | Detail |
+|---|---|
+| `wa.me` supports one recipient | Individual WhatsApp links only open a chat with a single contact. For more than one recipient, use the copy-to-clipboard broadcast list approach. |
+| Broadcast lists require WhatsApp Business | The clipboard numbers must be pasted into **WhatsApp Business**. Standard WhatsApp does not support broadcast lists. |
+| 256-recipient cap | WhatsApp Business broadcast lists are capped at 256 recipients per list. For larger campaigns, split the selection across multiple pages. |
+| No delivery receipts | FemeSalud does not track whether messages were delivered or read. Delivery confirmation must be checked inside WhatsApp Business directly. |

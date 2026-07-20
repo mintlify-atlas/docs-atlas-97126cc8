@@ -1,0 +1,242 @@
+---
+title: "Consultations: Structured Clinical Examination Forms"
+sidebarTitle: "Consultations"
+description: "Record full clinical consultations with vitals, physical exam, colposcopy findings, obstetric control, treatment plan, consumables used, and prescription templates."
+---
+
+The Consultations module is where clinical encounters are formally documented. Each consultation is linked one-to-one with an appointment and captures the full clinical encounter: patient narrative, vital signs, physical examination by system, special procedures (colposcopy or obstetric control), diagnostic impression, treatment plan, and materials consumed — all in a structured, tab-based form that saves atomically to Supabase via an RPC call.
+
+## Opening a Consultation
+
+Consultations are always initiated from the **Agenda** module. Select any appointment card and click the **Consulta** action (stethoscope icon) to open `ConsultationForm` as a full-screen dialog. The form pre-checks whether a consultation already exists for that `appointment_id` via `useConsultationByAppointment`:
+
+- **New consultation**: all fields are blank with default values.
+- **Existing consultation**: the form loads the saved data (including consumables) and switches to edit mode — the save button reads "Guardar Cambios" instead of "Completar Consulta".
+
+On successful creation, the app navigates automatically to the billing module (`/facturacion`) so the consultation fee can be processed immediately.
+
+## Visit Types
+
+The `VisitType` enum defines the nature of the encounter:
+
+```typescript
+export type VisitType =
+  | "CONTROL"
+  | "EMERGENCIA"
+  | "CONSULTA_NUEVA"
+  | "POST_TRATAMIENTO"
+  | "OTRO";
+```
+
+| Value | Display Label | Use Case |
+|---|---|---|
+| `CONTROL` | Control | Routine follow-up or periodic check-up. |
+| `EMERGENCIA` | Emergencia | Urgent or unscheduled visit. Displayed in red throughout the UI. |
+| `CONSULTA_NUEVA` | Consulta Nueva | First encounter with a new complaint or new patient. Displayed in blue. |
+| `POST_TRATAMIENTO` | Post-Tratamiento | Follow-up after a surgical or clinical procedure. |
+| `OTRO` | Otro | Any visit that does not fit the above categories. |
+
+## Contact Channels
+
+The `CONTACT_CHANNELS` constant tracks how the patient learned about the clinic — used for marketing analytics:
+
+```typescript
+export const CONTACT_CHANNELS = [
+  "WhatsApp",
+  "Instagram",
+  "Facebook",
+  "Radio",
+  "Recomendado",
+  "Prensa",
+  "Volante",
+  "Otro",
+];
+```
+
+This field is captured in the **Anamnesis** tab and stored in the `contact_channel` column of the `consultations` table.
+
+## Form Tabs
+
+The consultation form is organised into five tabs. All fields are managed by `react-hook-form` via a shared `FormProvider` context.
+
+<Steps>
+  <Step title="Anamnesis">
+    **Visit type** (select from `VisitType`), **contact channel** (select from `CONTACT_CHANNELS`), **first-visit flag** (checkbox — `is_first_visit`), and **subjective exam** (textarea — `subjectiveExam`: the patient's own narrative, chief complaint, and immediate history).
+  </Step>
+
+  <Step title="Vitals and Physical Exam">
+    **Vital signs section:**
+
+    | Field | Form Key | Unit |
+    |---|---|---|
+    | Height | `heightCm` | cm |
+    | Weight | `weightKg` | kg |
+    | BMI | auto-calculated | computed as `weight / (height/100)²` |
+    | Blood pressure | `bloodPressure` | e.g. 120/80 |
+    | Heart rate | `heartRate` | LPM |
+    | Respiratory rate | `respiratoryRate` | RPM |
+    | Temperature | `temperature` | °C |
+
+    BMI is read-only and recalculates live as the clinician types height and weight. It is stored as `bmi` in the database.
+
+    **Physical exam by system** (free-text inputs):
+
+    | System | Form Key |
+    |---|---|
+    | Skin and teguments | `skin` |
+    | Head and neck | `headNeck` |
+    | Breasts | `breasts` |
+    | Abdomen | `abdomen` |
+    | Gynecological | `gynecological` |
+    | Extremities | `extremities` |
+    | Neurological | `neurological` |
+  </Step>
+
+  <Step title="Special Exams">
+    **Colposcopy findings** (fill only if a colposcopy was performed):
+
+    | Field | Form Key | Description |
+    |---|---|---|
+    | Acetic acid test result | `aceticAcidTest` | e.g. "Acetoblanco positivo" |
+    | Clock position (acetic) | `aceticClockPosition` | e.g. "12:00, 3:00" |
+    | Relative position (acetic) | `aceticRelativePosition` | e.g. "Zona de transformación" |
+    | Lugol (Schiller) test result | `lugolTest` | e.g. "Yodonegativo" |
+    | Clock position (Lugol) | `lugolClockPosition` | e.g. "6:00, 9:00" |
+    | Relative position (Lugol) | `lugolRelativePosition` | e.g. "Labio anterior" |
+
+    **Obstetric control** (fill only if the patient is pregnant):
+
+    | Field | Form Key | Description |
+    |---|---|---|
+    | Gestational age | `gestationalAge` | e.g. "24.3 semanas" |
+    | Estimated fetal weight | `fetalWeight` | grams |
+    | Obstetric blood pressure | `obstetricBp` | e.g. "110/70" |
+    | Uterine height | `uterineHeight` | cm |
+    | Fetal presentation | `presentation` | Cefálica, Podálica, Transversa |
+    | Fetal heart rate | `fetalHeartRate` | LPM |
+    | Fetal movements | `fetalMovements` | e.g. "Activos, presentes" |
+    | Edema | `edema` | e.g. "Ausente, grado I" |
+    | Alarm signs | `alarmSigns` | e.g. "Niega cefalea, zumbidos" |
+  </Step>
+
+  <Step title="Treatment Plan">
+    | Field | Form Key | Notes |
+    |---|---|---|
+    | Diagnosis | `diagnosis` | Required. Clinical impression. |
+    | Indications / Prescription | `indications` | Medication, dosage, rest orders. Supports prescription templates (see below). |
+    | Complementary exams | `complementaryExams` | Lab, imaging, or specialist referrals. |
+    | Plan / Conduct | `plan` | Clinical management plan, interconsultations, procedures. |
+    | Next appointment date | `nextAppointmentDate` | Suggested return date (type `date`). |
+  </Step>
+
+  <Step title="Consumables">
+    Track all materials used during the encounter. Two sections are available:
+
+    **Common consumables** (from `COMMON_CONSUMABLES`): a pre-defined list with quantity inputs and default units:
+
+    ```typescript
+    export const COMMON_CONSUMABLES = [
+      { name: "Kit de citología",       defaultUnit: "U"   },
+      { name: "Gel de ultrasonido",     defaultUnit: "cc"  },
+      { name: "Impresión de eco",       defaultUnit: "U"   },
+      { name: "Papel camilla",          defaultUnit: "m"   },
+      { name: "Guantes de examen",      defaultUnit: "par" },
+      { name: "Guantes estériles",      defaultUnit: "par" },
+      { name: "Gasas",                  defaultUnit: "U"   },
+      { name: "Espéculo desechable",    defaultUnit: "U"   },
+      { name: "Jeringas",               defaultUnit: "U"   },
+      { name: "Baja lengua",            defaultUnit: "U"   },
+    ];
+    ```
+
+    Enter a quantity greater than 0 to include an item; leave it empty to exclude it.
+
+    **Custom consumables**: click **Añadir** to add a row with free-text `item_name`, numeric `quantity`, and `unit` (e.g., "U", "par", "cc"). Click the trash icon to remove a row.
+
+    Consumables are passed to the RPC as an array and affect inventory stock if the inventory module is active. They also appear on the patient's billing summary.
+  </Step>
+</Steps>
+
+## Prescription Templates
+
+The treatment plan tab includes a template system to avoid re-typing common medication instructions.
+
+<Tip>
+  Use prescription templates for treatments you prescribe regularly — for example, a standard pre-operative protocol, a common antibiotic course, or a contraceptive initiation regimen. Templates save the full `indications` text and can be applied to any consultation with a single click, then edited as needed.
+</Tip>
+
+To save the current indications as a template, type a name in the "Nombre de nueva plantilla" input and click **Guardar**. Templates are stored in the `prescription_templates` table and are available to all users in the clinic.
+
+To apply a template, select it from the "Usar plantilla rápida..." dropdown. If the indications field already has content, the template text is **appended** (separated by a newline) rather than replacing what was already there. Templates can be deleted from the same dropdown using the trash icon next to each entry.
+
+The `PrescriptionTemplate` interface:
+
+```typescript
+export interface PrescriptionTemplate {
+  id: string;
+  title: string;
+  indications: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+## Form Value Types
+
+The complete set of form fields managed by `react-hook-form`:
+
+```typescript
+export interface ConsultationFormValues {
+  visitType: VisitType;
+  isFirstVisit: boolean;
+  subjectiveExam: string;
+  contactChannel: string;
+  heightCm: string;
+  weightKg: string;
+  bloodPressure: string;
+  heartRate: string;
+  respiratoryRate: string;
+  temperature: string;
+  skin: string;
+  headNeck: string;
+  breasts: string;
+  abdomen: string;
+  gynecological: string;
+  extremities: string;
+  neurological: string;
+  aceticAcidTest: string;
+  aceticClockPosition: string;
+  aceticRelativePosition: string;
+  lugolTest: string;
+  lugolClockPosition: string;
+  lugolRelativePosition: string;
+  gestationalAge: string;
+  fetalWeight: string;
+  obstetricBp: string;
+  uterineHeight: string;
+  presentation: string;
+  fetalHeartRate: string;
+  fetalMovements: string;
+  edema: string;
+  alarmSigns: string;
+  diagnosis: string;
+  indications: string;
+  complementaryExams: string;
+  plan: string;
+  nextAppointmentDate: string;
+}
+```
+
+## Saving
+
+Consultations are persisted via two Supabase RPC functions to ensure atomicity:
+
+- **Create**: `create_consultation_rpc(p_consultation, p_consumables)` — inserts the consultation row and all consumable records in a single database transaction.
+- **Update**: `update_consultation_rpc(p_consultation_id, p_patch, p_consumables)` — updates the consultation and replaces the consumables set atomically.
+
+Both mutations use optimistic updates via React Query, so the UI reflects the change immediately while the request is in flight. On error, the previous state is restored automatically.
+
+### Save and Print
+
+The **Guardar e Imprimir** button saves the consultation and immediately generates a prescription PDF (`generateRecipePDF`) using the `indications` field, patient demographics, and doctor credentials. The PDF opens in a new browser tab for printing or saving.

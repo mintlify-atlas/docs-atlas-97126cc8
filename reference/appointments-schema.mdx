@@ -1,0 +1,137 @@
+---
+title: "Appointments Table: Schema, Statuses, and Filters"
+sidebarTitle: "Appointments Schema"
+description: "Field reference for the appointments table including scheduling fields, payment information, status values, and the AppointmentFilters interface for querying."
+---
+
+The `appointments` table is the scheduling backbone of FemeSalud. Each row represents a single booked visit — pairing a patient with the doctor who will see them at a specific date and time. Beyond scheduling, appointments also carry optional payment data (amount, method, and reference), making the table the primary source of truth for the practice's revenue tracking. A completed appointment can be linked to exactly one consultation record, which is used throughout the UI to indicate whether clinical notes have been filed for the visit.
+
+## Appointment Status
+
+The `status` field follows a defined lifecycle:
+
+```typescript
+export type AppointmentStatus = "programada" | "completada" | "cancelada";
+```
+
+| Value        | Meaning                                                               |
+| ------------ | --------------------------------------------------------------------- |
+| `programada` | Appointment is booked and pending. Default value on insert.           |
+| `completada` | The visit took place and a consultation record has been filed.        |
+| `cancelada`  | Appointment was cancelled before the visit occurred.                  |
+
+## Fields
+
+<ResponseField name="id" type="uuid" required>
+  Primary key. Auto-generated UUID.
+</ResponseField>
+
+<ResponseField name="patient_id" type="uuid" required>
+  Foreign key to `patients.id`. Identifies the patient attending the appointment. Cascading deletes are not applied — deleting a patient will only succeed if no appointments reference them, or the consuming code must clean up appointments first.
+</ResponseField>
+
+<ResponseField name="doctor_id" type="uuid" required>
+  Foreign key to `profiles.id`. Identifies the doctor responsible for the visit. Row Level Security uses this field to restrict which appointments a non-admin user can read.
+</ResponseField>
+
+<ResponseField name="scheduled_at" type="timestamptz" required>
+  ISO 8601 datetime with time zone. Represents the start time of the appointment. Used as the primary sort key — appointments are ordered by `scheduled_at` descending by default.
+</ResponseField>
+
+<ResponseField name="duration_minutes" type="integer" required>
+  Expected duration of the appointment in minutes. Defaults to `60` when not explicitly provided.
+</ResponseField>
+
+<ResponseField name="status" type="text" required>
+  Lifecycle state of the appointment. Defaults to `programada`. Accepted values: `programada | completada | cancelada`.
+</ResponseField>
+
+<ResponseField name="reason" type="text">
+  Free-text description of the reason for the visit as stated by the patient. Nullable.
+</ResponseField>
+
+<ResponseField name="notes" type="text">
+  Internal notes added by the scheduling staff or doctor. Not shown to the patient. Nullable.
+</ResponseField>
+
+<ResponseField name="price" type="numeric">
+  Amount charged for the appointment, denominated in USD. Nullable when no fee has been set.
+</ResponseField>
+
+<ResponseField name="payment_method" type="text">
+  Method used to settle the appointment fee. Nullable. Accepted values:
+
+  | Value             | Description              |
+  | ----------------- | ------------------------ |
+  | `efectivo`        | Cash payment             |
+  | `zelle`           | Zelle transfer (USD)     |
+  | `pago_movil`      | Venezuelan mobile pay    |
+  | `transferencia`   | Bank wire transfer       |
+  | `tarjeta_debito`  | Debit card               |
+  | `tarjeta_credito` | Credit card              |
+  | `seguro`          | Health insurance         |
+</ResponseField>
+
+<ResponseField name="payment_reference" type="text">
+  Transaction reference number or confirmation code for the payment. Nullable.
+</ResponseField>
+
+<ResponseField name="created_at" type="timestamptz" required>
+  Timestamp set automatically by the database when the row is inserted.
+</ResponseField>
+
+<ResponseField name="updated_at" type="timestamptz" required>
+  Timestamp updated automatically by the database on each modification.
+</ResponseField>
+
+<ResponseField name="created_by" type="uuid">
+  Foreign key to `auth.users.id`. Records which authenticated user created the appointment. Set at the application layer from `supabase.auth.getUser()` at insert time. Nullable.
+</ResponseField>
+
+## Extended Type: AppointmentWithPatient
+
+When the appointments list is fetched by `useAppointments`, the query joins the `patients` and `consultations` tables to enrich each row with two computed fields:
+
+```typescript
+export interface AppointmentWithPatient extends Appointment {
+  patient_name?: string;   // Joined from patients.full_name
+  has_consultation?: boolean; // true when ≥1 consultation row exists for this appointment
+}
+```
+
+`has_consultation` is computed in the application by checking whether the `consultations` join returns at least one row. It is used in the agenda UI to display a visual indicator and to control whether the "File Consultation" action is available.
+
+## Filtering with AppointmentFilters
+
+The `useAppointments` hook accepts an optional `AppointmentFilters` object to narrow the result set server-side before returning data to the client:
+
+```typescript
+export interface AppointmentFilters {
+  from?: string;   // ISO date string YYYY-MM-DD — lower bound on scheduled_at
+  to?: string;     // ISO date string YYYY-MM-DD — upper bound on scheduled_at (inclusive, extended to 23:59:59)
+  status?: string; // 'programada' | 'completada' | 'cancelada'
+  limit?: number;  // Maximum number of rows to return
+}
+```
+
+<Tip>
+  The `to` filter is automatically extended to `T23:59:59.999Z` at the application layer, so passing `to: "2025-06-30"` captures all appointments scheduled on that day regardless of time.
+</Tip>
+
+### Example usage
+
+```typescript
+// Fetch all scheduled appointments in the current week
+const { data } = useAppointments({
+  from: "2025-06-23",
+  to: "2025-06-29",
+  status: "programada",
+});
+
+// Fetch the 5 most recent appointments across all statuses
+const { data } = useAppointments({ limit: 5 });
+```
+
+## Default Sort Order
+
+All appointment queries use `.order("scheduled_at", { ascending: false })`, meaning the most recently scheduled appointment appears first. There is no secondary sort key — appointments scheduled at identical timestamps will appear in an arbitrary order determined by the database.

@@ -1,0 +1,164 @@
+---
+title: "Patients: Registry, Profiles, and Medical History"
+sidebarTitle: "Patients"
+description: "Manage the full patient registry with gynecological profiles, obstetric history, family antecedents, and document exports. Supports paginated search and status filtering."
+---
+
+The Patients module is the central repository for every person treated at the clinic. Beyond basic demographics, each patient record holds a structured gynecological profile, obstetric history, family and personal antecedents, and the full chain of consultations. The registry is searchable, filterable, and paginated to remain performant regardless of clinic size.
+
+## Patient Status Values
+
+Every patient is assigned one of four lifecycle statuses that appear as colour-coded badges throughout the platform:
+
+<CardGroup cols={2}>
+  <Card title="nuevo" icon="sparkles">
+    Recently registered patient who has not yet had a completed visit. Default status on creation. Displayed in pink (blush).
+  </Card>
+  <Card title="activo" icon="circle-check">
+    Patient with at least one completed visit and no ongoing treatment protocol. Displayed in green (sage).
+  </Card>
+  <Card title="en_tratamiento" icon="activity">
+    Patient currently under an active treatment plan (e.g., prenatal control, post-procedure follow-up). Displayed in purple (mauve).
+  </Card>
+  <Card title="alta" icon="archive">
+    Discharged patient — treatment concluded and no follow-up required. Displayed in muted grey. The record is retained in full.
+  </Card>
+</CardGroup>
+
+## Patient Profile Fields
+
+The `Patient` interface maps directly to the `patients` table in Supabase:
+
+```typescript
+export interface Patient {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  address: string | null;
+  status: string;               // 'nuevo' | 'activo' | 'en_tratamiento' | 'alta'
+  assigned_doctor_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  document_id: string | null;   // cédula or passport number
+  historia_number: string | null;
+  first_visit_date: string | null;
+  marital_status: string | null;
+  birthplace: string | null;
+  education_level: string | null;
+  occupation: string | null;
+  ethnicity: string | null;
+  consultation_reason: string | null;
+  current_illness: string | null;
+  family_history: { ... } | null;
+  personal_history: { ... } | null;
+  gynecological_data: { ... } | null;
+  obstetric_data: { ... } | null;
+}
+```
+
+<Tip>
+  Always set `assigned_doctor_id` when creating a patient. It controls which doctor appears on all exported PDF documents (Ficha Médica, Reposo, Constancia, Justificativo) and determines which patients a non-admin doctor can view in their personal dashboard.
+</Tip>
+
+## Family History (`family_history`)
+
+Stored as a JSON object with the following structure:
+
+| Field | Description |
+|---|---|
+| `mother` | Hereditary or chronic conditions on the maternal side. |
+| `father` | Hereditary or chronic conditions on the paternal side. |
+| `siblings` | Relevant conditions among siblings. |
+| `children` | Relevant conditions among the patient's children. |
+
+Default display value when empty: "Niega / Sano".
+
+## Personal History (`personal_history`)
+
+| Field | Description |
+|---|---|
+| `alcohol` | Alcohol consumption pattern. |
+| `drugs` | Drug use history. |
+| `tobacco` | Smoking history. |
+| `base_pathology` | Chronic baseline pathologies (e.g., hypertension, diabetes). |
+| `surgical` | Previous surgical procedures. |
+| `allergies` | Known allergies — displayed in **red** on the Clinical Records screen as a safety highlight. |
+
+## Gynecological Data (`gynecological_data`)
+
+| Field | Description |
+|---|---|
+| `menarche` | Age of first menstruation (years). |
+| `sexarche` | Age of first sexual intercourse (years). |
+| `menstrual_cycle` | Cycle description (e.g., "28/5 días regular"). |
+| `dysmenorrhea` | Painful menstruation: absent, mild, moderate, or severe. |
+| `nps` | Number of sexual partners. |
+| `its` | History of sexually transmitted infections. |
+| `cytology` | Date or result of the most recent Pap smear. |
+| `contraceptives` | Current or previous contraceptive method. |
+
+## Obstetric Data (`obstetric_data`)
+
+| Field | Abbreviation | Description |
+|---|---|---|
+| `g` | G | Total gestations (pregnancies). |
+| `p` | P | Vaginal deliveries (partos). |
+| `c` | C | Caesarean sections. |
+| `a` | A | Abortions / pregnancy losses. |
+| `pig` | PIG | Intergenesic period — time between last delivery and current pregnancy. |
+| `fum` | FUM | Date of last menstrual period (fecha última menstruación). |
+| `eg` | EG | Current gestational age. |
+| `fpp` | FPP | Estimated due date (fecha probable de parto). |
+| `em` | EM | Molar pregnancies (embarazo molar). |
+| `ee` | EE | Ectopic pregnancies (embarazo ectópico). |
+| `vaccines` | — | Vaccination history during pregnancy. |
+| `complications` | — | Obstetric complications. |
+| `num_consultations` | — | Number of prenatal check-ups completed. |
+
+## Duplicate Prevention
+
+The system enforces uniqueness on two fields before inserting or updating a patient:
+
+- **`document_id`** (cédula/pasaporte): an exact match query runs against the `patients` table. If a record with the same `document_id` already exists (different `id`), the mutation throws: *"Ya existe un paciente con este mismo número de cédula/pasaporte."*
+- **`full_name`** (case-insensitive): an `ilike` query checks for an identical name. If a match is found, the mutation throws: *"Ya existe un paciente registrado con este mismo nombre completo."*
+
+Both checks run client-side before the `INSERT` / `UPDATE` is sent to Supabase, providing immediate user feedback via a toast error.
+
+## Pagination and Search
+
+Patient lists throughout the app use `usePaginatedPatients`, which accepts:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `page` | `1` | Current page number. |
+| `pageSize` | `10` | Records per page (15 in the full Patients list). |
+| `search` | `undefined` | Filters by `full_name`, `email`, or `document_id` using `ilike`. |
+| `status` | `undefined` | Exact match on `status` column. |
+
+The search input uses a 350 ms debounce before triggering the query. Changing the search or status filter resets the page to `1` automatically.
+
+The Patients page also provides an **Exportar Excel** button that downloads the current filtered result set as an `.xlsx` file using the `xlsx` library.
+
+## Document Exports
+
+From the patient detail panel, four PDF documents can be generated:
+
+<CardGroup cols={2}>
+  <Card title="Ficha Médica" icon="file-medical">
+    Full patient profile including demographics, gynecological data, obstetric history, and all clinical notes. Exported via `exportFichaMedica`.
+  </Card>
+  <Card title="Historia Clínica Completa" icon="clipboard">
+    Complete clinical record including all consultations and their details. Exported via `exportFullHistory` from the Clinical Records module.
+  </Card>
+  <Card title="Constancia de Reposo" icon="bed">
+    Medical rest certificate specifying the number of days, start date, and reason. Exported via `exportReposo`.
+  </Card>
+  <Card title="Justificativo" icon="file-text">
+    Medical justification letter (e.g., work or school absence). Exported via `exportJustificativo`.
+  </Card>
+</CardGroup>
+
+For more details on PDF generation, see [PDF Exports](/reference/pdf-exports).

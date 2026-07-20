@@ -1,0 +1,112 @@
+---
+title: "Agenda: Appointment Scheduling and Calendar Management"
+sidebarTitle: "Agenda"
+description: "Schedule, view, and manage appointments across day, week, month, and list views with real-time Supabase sync and instant status updates."
+---
+
+The Agenda module is the scheduling hub of FemeSalud. It provides four complementary views of the appointment calendar, a full appointment creation and editing form, instant status transitions, and WhatsApp reminder dispatch — all backed by Supabase Realtime so every device in the clinic sees changes the moment they happen.
+
+## Views
+
+Use the **Calendario / Lista** toggle in the top-right header to switch between the calendar and list modes. Within Calendar mode, a secondary toggle offers three sub-views.
+
+<CardGroup cols={2}>
+  <Card title="Day View" icon="calendar-day">
+    A two-panel layout: a date info card on the left (showing the selected day, weekday name, and a "Programar Cita" button) and a timeline on the right listing all appointments for that day sorted by time. Each appointment shows a coloured bullet on the timeline line. Click any day in the Month view to jump directly to its Day view.
+  </Card>
+  <Card title="Week View" icon="calendar-range">
+    A seven-column grid (Monday–Sunday) displaying all appointments per day as compact cards. The current day column is visually highlighted. You can drag and drop an appointment card onto a different day column to reschedule it — the system calls `useUpdateAppointment` with the new ISO date while preserving the original time.
+  </Card>
+  <Card title="Month View" icon="calendar">
+    A 6-week (42-cell) grid. Each cell shows up to a few appointment chips for that date. Clicking a cell opens the Day view for that date; clicking an empty area within a cell pre-fills the appointment form with that date. Drag-and-drop rescheduling is also supported.
+  </Card>
+  <Card title="List View" icon="list">
+    Appointments grouped by date (newest group first) and paginated at 15 groups per page. Three scope filters appear in list mode: **Hoy** (today only), **Semana** (next 7 days), and **Todas**. Useful for bulk review or export planning.
+  </Card>
+</CardGroup>
+
+To switch sub-views within Calendar mode, use the **Día / Semana / Mes** pill-button group. Use the `‹` / `›` navigation arrows or the month/year dropdowns to move the calendar window; the **Hoy** button resets to the current date.
+
+## Creating an Appointment
+
+Click **Nueva cita** (top-right button) or click directly on any empty calendar cell to open `AppointmentForm`. The following fields are available:
+
+| Field | Type | Notes |
+|---|---|---|
+| `patient_id` | Select (search) | Required. Searches the `patients` table. |
+| `doctor_id` | Select | Required. Lists all profiles with the doctor role. |
+| `scheduled_at` | Date + time picker | ISO 8601 stored in UTC. |
+| `duration_minutes` | Number | Default `60`. |
+| `status` | Select | `programada` \| `completada` \| `cancelada` |
+| `reason` | Text | Visit reason / chief complaint. |
+| `price` | Number | Consultation fee in USD. |
+| `payment_method` | Select | Efectivo, Transferencia, Tarjeta, etc. |
+| `payment_reference` | Text | Reference number for electronic payments. |
+| `notes` | Textarea | Internal notes, not visible to the patient. |
+
+The full TypeScript type used when creating or updating an appointment:
+
+```typescript
+export type AppointmentInput = {
+  patient_id: string;
+  doctor_id: string;
+  scheduled_at: string; // ISO 8601
+  duration_minutes?: number; // default 60
+  status?: string; // 'programada' | 'completada' | 'cancelada'
+  reason?: string | null;
+  notes?: string | null;
+  price?: number | null;
+  payment_method?: string | null;
+  payment_reference?: string | null;
+};
+```
+
+## Appointment Statuses
+
+Every appointment carries one of three statuses that drive colour coding throughout the calendar.
+
+<CardGroup cols={3}>
+  <Card title="programada" icon="clock">
+    Scheduled — appointment is upcoming and confirmed. Displayed in purple (mauve) across all views.
+  </Card>
+  <Card title="completada" icon="circle-check">
+    Completed — the patient attended and the visit is closed. Displayed in green (sage). A completed appointment can be opened to attach or review its consultation record.
+  </Card>
+  <Card title="cancelada" icon="circle-x">
+    Cancelled — the appointment will not take place. Displayed in red (destructive). Cancelled appointments remain in the system for reporting purposes.
+  </Card>
+</CardGroup>
+
+You can change a status inline from any view without opening the edit form. In the Day and List views, the appointment card exposes a status dropdown; in the Week and Month views, click the appointment chip and select a new status from the popover.
+
+## Real-Time Sync
+
+The Agenda subscribes to Supabase Realtime on the `appointments` channel. Any insert, update, or delete performed by another user (or another browser tab) is reflected immediately in the current view via `useQueryClient().invalidateQueries`. There is no need to refresh the page.
+
+## WhatsApp Reminders
+
+Any appointment with status `programada` shows a green `MessageCircle` icon button. Clicking it:
+
+1. Fetches the patient's `phone` and `full_name` from the `patients` table.
+2. Strips all non-digit characters from the phone number.
+3. Builds a pre-written Spanish message:
+```
+Hola *[full_name]*, le escribimos de *FemeSalud* para recordarle su cita médica
+el día *[weekday, day month]* a las *[HH:MM]* con *[doctor name]*.
+Por favor, confirme su asistencia respondiendo a este mensaje. ¡Que tenga un excelente día!
+```
+4. Opens `https://wa.me/{cleanPhone}?text={encodedMessage}` in a new tab.
+
+If the patient has no phone number on record, a toast error is shown instead.
+
+## Filter Options
+
+The filter bar below the header provides status filters that work across all views:
+
+```
+todas  ·  programada  ·  completada  ·  cancelada
+```
+
+Each pill shows the current appointment count for that status. In List mode, the additional scope pills (**Hoy / Semana / Todas**) narrow the date range further.
+
+For doctor-specific filtering, use the **Doctor** select that appears in some views to narrow the displayed appointments to a single provider. Date range filtering is handled by adjusting the calendar navigation: the query automatically fetches appointments ±1 month around the current calendar window (±6 months in full list mode).

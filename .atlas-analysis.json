@@ -1,0 +1,136 @@
+{
+  "projectType": "saas",
+  "projectName": "FemeSalud",
+  "projectDescription": "A premium SaaS clinical management platform for gynecology and obstetrics practices, built with TanStack Start, React, Supabase, and Tailwind CSS.",
+  "theme": "willow",
+  "primaryColor": "#351137",
+  "lightColor": "#ef7da4",
+  "darkColor": "#8c4c6c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "environment-setup"
+            ]
+          },
+          {
+            "group": "Core Modules",
+            "pages": [
+              "modules/dashboard",
+              "modules/agenda",
+              "modules/patients",
+              "modules/clinical-records",
+              "modules/consultations"
+            ]
+          },
+          {
+            "group": "Finance & Reports",
+            "pages": [
+              "modules/billing",
+              "modules/reports"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/user-roles",
+              "admin/clinic-settings",
+              "admin/crm"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/vercel",
+              "deployment/dark-mode"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Data Reference",
+        "groups": [
+          {
+            "group": "Database Schema",
+            "pages": [
+              "reference/schema-overview",
+              "reference/patients-schema",
+              "reference/appointments-schema",
+              "reference/consultations-schema"
+            ]
+          },
+          {
+            "group": "PDF Exports",
+            "pages": [
+              "reference/pdf-exports"
+            ]
+          },
+          {
+            "group": "API Hooks",
+            "pages": [
+              "reference/api-hooks"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Intelligent appointment scheduling with day/week/month/list views and real-time sync",
+    "Full electronic medical records (historias clínicas) with gynecological and obstetric data",
+    "Structured consultation forms covering vitals, physical exam, colposcopy, and obstetric control",
+    "Clinical notes with file attachments stored in Supabase Storage",
+    "Billing and collections management with multiple payment method support",
+    "Interactive PDF exports: medical record, full history, rest certificate, invoice, monthly report",
+    "Executive analytics dashboard with KPIs, income charts, and marketing channel breakdown",
+    "CRM module for WhatsApp bulk outreach and patient fidelization campaigns",
+    "Role-based access control (admin / doctor) enforced by Supabase Row Level Security",
+    "Dark mode support with persistent localStorage preference",
+    "SSR via TanStack Start + Nitro for fast initial page load",
+    "Prescription template management for reusable medication instructions"
+  ],
+  "publicApiSurface": [
+    "usePatients() — paginated patient list with search and status filter",
+    "usePatient(id) — single patient detail with full clinical profile",
+    "useCreatePatient() — create patient with duplicate name/document checks",
+    "useUpdatePatient() — update patient record with optimistic updates",
+    "useDeletePatient() — delete patient and invalidate related queries",
+    "useAppointments(filters?) — appointments with optional date/status/limit filters",
+    "useCreateAppointment() — schedule a new appointment",
+    "useUpdateAppointment() — update appointment status, price, or payment method",
+    "useConsultations(filters?) — all consultations with optional date range",
+    "usePatientConsultations(patientId) — consultations for a specific patient",
+    "useConsultationByAppointment(appointmentId) — single consultation linked to appointment",
+    "useCreateConsultation() — create consultation via create_consultation_rpc",
+    "useUpdateConsultation() — update consultation via update_consultation_rpc",
+    "usePrescriptionTemplates() — list reusable prescription templates",
+    "useCreatePrescriptionTemplate() — save a new template",
+    "useClinicalNotes(patientId) — clinical notes for a patient",
+    "useCreateClinicalNote() — create clinical note with file attachments",
+    "useDeleteClinicalNote() — delete note and associated Supabase Storage files",
+    "uploadClinicalAttachments(patientId, files) — upload files to clinical-attachments bucket",
+    "getAttachmentUrl(path) — generate a 30-minute signed URL for an attachment",
+    "useClinicInfo() — fetch clinic configuration record",
+    "useUpdateClinicInfo() — update clinic name, address, phone, RIF",
+    "useDoctors() — list profiles with doctor role",
+    "useMyProfile(userId) — fetch current user profile",
+    "useAllProfilesWithRoles() — all profiles with associated roles (admin only)",
+    "useToggleRole() — grant or revoke admin/doctor role from a user",
+    "useAuthSession() — reactive auth session and user state",
+    "useRoles() — fetch current user's roles from user_roles table",
+    "useIsAdmin() — boolean check for admin role",
+    "useTheme() — light/dark theme toggle with localStorage persistence",
+    "useRealtimeSync() — Supabase realtime channel subscription for live data sync",
+    "exportFichaMedica(patient, clinic, doctorMap, notes) — export patient medical card PDF",
+    "exportFullHistory(patient, visits, clinic, doctorMap) — export complete clinical history PDF",
+    "exportReposo(patient, clinic, doctorInfo, reason, days, start) — export rest certificate PDF",
+    "exportInvoice(appointment, clinic, doctorInfo) — export payment receipt PDF",
+    "requireSupabaseAuth — TanStack Start server middleware for Bearer token validation"
+  ]
+}

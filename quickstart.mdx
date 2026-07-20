@@ -1,47 +1,92 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with FemeSalud in 5 Steps"
+sidebarTitle: "Quickstart"
+description: "Clone FemeSalud, connect your Supabase project, configure environment variables, and run the dev server locally in under 10 minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide walks you through getting FemeSalud running on your local machine from scratch. By the end you will have a fully functional development server connected to your own Supabase project and ready for customization. Before you start, make sure you have **Node.js 18+** or **Bun 1.0+** installed, and a free [Supabase](https://supabase.com) account ready to go.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Clone the Repository">
+    Clone the FemeSalud repository from GitHub and navigate into the project directory:
 
     ```bash
-    npm install your-package
+    git clone https://github.com/KevxxAlva/femesalud-zen-flow.git
+    cd femesalud-zen-flow
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Install Dependencies">
+    Install all project dependencies. Bun is strongly recommended for its significantly faster install and build times, but npm and pnpm are fully supported.
+
+    <CodeGroup>
+      ```bash bun
+      bun install
+      ```
+
+      ```bash npm
+      npm install
+      ```
+
+      ```bash pnpm
+      pnpm install
+      ```
+    </CodeGroup>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in the root of the project and add your Supabase credentials:
+
+    ```bash .env
+    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+    VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+    ```
+
+    You can find both values in your Supabase dashboard:
+
+    1. Open [app.supabase.com](https://app.supabase.com) and select your project.
+    2. Go to **Project Settings** → **API**.
+    3. Copy the **Project URL** into `VITE_SUPABASE_URL`.
+    4. Copy the **`anon` / `public`** key into `VITE_SUPABASE_ANON_KEY`.
+
+    <Note>
+      The `VITE_` prefix is required. Vite injects these values at build time for client-side access via `import.meta.env`. The app also reads `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (without the prefix) for server-side middleware. See [Environment Setup](/environment-setup) for the full variable reference.
+    </Note>
+  </Step>
+
+  <Step title="Run the Development Server">
+    Start the local development server with:
 
     ```bash
-    your-cli start
+    bun run dev
+    ```
+
+    Once the server is ready, open your browser and navigate to:
+
+    ```
+    http://localhost:8080
+    ```
+
+    The dev server supports Hot Module Replacement (HMR) — any changes you make to source files will be reflected in the browser instantly without a full page reload.
+  </Step>
+
+  <Step title="Build for Production">
+    When you are ready to deploy, generate an optimized production build:
+
+    ```bash
+    bun run build
+    ```
+
+    This command bundles the application and outputs Serverless Function artifacts to the `.vercel/output/` directory, ready for deployment to Vercel. The build uses the Nitro `vercel` preset defined in `vite.config.ts`.
+
+    To preview the production build locally before deploying, run:
+
+    ```bash
+    bun run preview
     ```
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<Note>
+  The development server alone is not enough for a fully working application — your Supabase project also needs the correct database schema, RLS policies, storage bucket, and an initial admin user. Head to the [Environment Setup](/environment-setup) guide for complete instructions on preparing your Supabase project.
+</Note>

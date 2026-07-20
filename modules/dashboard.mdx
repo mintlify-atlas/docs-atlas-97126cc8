@@ -1,0 +1,100 @@
+---
+title: "Dashboard: Real-Time Clinical Overview"
+sidebarTitle: "Dashboard"
+description: "The FemeSalud dashboard surfaces today's appointments, patient KPIs, income trends, upcoming schedule, and a live notification feed in a single view."
+---
+
+The Dashboard is the first screen a user sees after logging in. It consolidates every critical operational signal — today's appointment load, total patient count, revenue trend, and the five next scheduled visits — into a single, real-time view powered by Supabase and React Query. Data refreshes automatically as the underlying tables change, so the numbers displayed always reflect the current state of the clinic without a manual page reload.
+
+## KPI Cards
+
+Four cards sit at the top-left of the grid, each built with a Recharts `AreaChart` sparkline that plots the last 10 data points. The cards and their delta calculations are:
+
+<CardGroup cols={2}>
+  <Card title="Consultas hoy" icon="calendar">
+    Count of appointments whose `scheduled_at` falls on today's date. The delta badge compares today's count against yesterday's. If yesterday had zero appointments and today has any, the delta shows `+100 %`.
+  </Card>
+  <Card title="Pacientes totales" icon="users">
+    Total patients in the registry. The delta compares patients registered in the last 7 days against the previous 7-day window (days −14 through −8). If the prior window had no registrations, any new patient in the last 7 days shows `+100 %`.
+  </Card>
+  <Card title="Ingresos del mes" icon="trending-up">
+    Sum of `price` for all appointments with status `completada` in the current calendar month. The delta compares this figure against the same-day-of-month total from the previous month (e.g., on the 15th it compares month-to-date with the first 15 days of last month).
+  </Card>
+  <Card title="Actividad ahora" icon="activity">
+    A live activity panel — not a numeric KPI — that shows three progress bars: room occupancy (scaled from today's appointment count), completed appointment percentage, and a static 94 % satisfaction indicator.
+  </Card>
+</CardGroup>
+
+Delta badges are color-coded: green (`bg-sage`) for positive growth, red for negative. Each sparkline is rendered with `ResponsiveContainer > AreaChart > Area` from Recharts and uses a gradient fill.
+
+## Hero Banner
+
+A large gradient banner (mauve → blush) displays an intelligent day summary. The headline text adapts to the situation:
+
+| Condition | Headline |
+|---|---|
+| Admin role | "Visión completa de la clínica." |
+| 0 appointments today | "Tu jornada está libre hoy." |
+| 1 appointment today | "Tienes una cita programada." |
+| 2–3 appointments today | "Tu jornada luce tranquila." |
+| 4+ appointments today | "Tienes una jornada activa hoy." |
+
+The sub-text beneath the headline shows the exact count of today's appointments, the total patient count (labeled "en total" for admins, "asignados" for doctors), and the number of completed consultations.
+
+<Note>
+  Admins see aggregated data for the entire clinic (all doctors, all patients). Doctors see only the patients and appointments assigned or related to their account. This filtering is enforced at the API/query level, not just in the UI.
+</Note>
+
+## Upcoming Appointments
+
+A vertical timeline shows the next **5 scheduled appointments** (`status = 'programada'`, sorted by `scheduled_at` ascending from today). Each card displays:
+
+- Date label ("Hoy" for today, or a short `dd MMM` format for future dates) and time in `HH:MM`
+- Patient name and visit reason
+- Assigned doctor name (resolved from the doctor map)
+- Status badge with colour coding
+- **WhatsApp reminder button** (green `MessageCircle` icon): clicking it fetches the patient's `phone` from the `patients` table, sanitises the number (strips non-digits), formats a pre-written Spanish reminder message including the patient's name, date, time, and doctor name, and opens `https://wa.me/{phone}?text={encodedMessage}` in a new tab
+
+If a search query is active, the timeline filters to appointments where `patient_name` or `reason` matches the query.
+
+## Recent Patients
+
+A card to the right of the timeline shows the **last 4 updated patients** (ordered by `updated_at` descending). Each row displays the patient's initials avatar, full name, assigned doctor, and a status badge.
+
+Status badge colour mapping:
+
+| Status | Style |
+|---|---|
+| `activo` | Green (sage) |
+| `en_tratamiento` | Purple (mauve) |
+| `nuevo` | Pink (blush) |
+| `alta` | Muted grey |
+
+The list is also filtered by the active search query (by `full_name`).
+
+## Income Chart
+
+The `DashboardIncomeChart` component occupies a wide bottom-grid column. It displays:
+
+- **Total this month**: sum of `price` for `completada` and `programada` appointments in the current calendar month, shown in a sage-coloured badge.
+- **Payment method breakdown**: a horizontal progress bar per payment method (e.g., Efectivo, Transferencia, Tarjeta, "Por Cobrar" for unpaid scheduled appointments). Each bar shows the method name, dollar amount, and percentage of the monthly total.
+- **Donut chart** (Recharts `PieChart > Pie`): a ring chart visualising the same breakdown. Hovering a segment shows a tooltip with the amount in USD.
+- **Delta badge**: month-over-month comparison (current month vs same period last month).
+
+## Notifications Panel
+
+A bell icon button in the top-right header area shows a red badge with the unread notification count. Clicking it opens a `Popover` with the last **5 events** (appointments + patients combined, sorted by `created_at` descending). Events are:
+
+- Up to 3 most recently created **appointments** → "Nueva cita agendada para {patient_name}"
+- Up to 3 most recently registered **patients** → "Nuevo paciente registrado: {full_name}"
+
+**Read state persistence**: when the popover opens, the `rawDate` of the newest notification is saved to `localStorage` under the key `notifications_last_read`. Unread count is recalculated as the number of events with `rawDate > lastReadTime`. This persists across page reloads until new events arrive.
+
+## Search
+
+A search input in the header (visible on `sm` breakpoints and wider) filters both the **Upcoming Appointments** timeline and the **Recent Patients** list simultaneously. The filter is case-insensitive and matches:
+
+- Appointments: `patient_name` or `reason`
+- Patients: `full_name`
+
+Clearing the input (via the `×` button or by deleting the text) restores both lists to their full state.

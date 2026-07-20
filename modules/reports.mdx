@@ -1,0 +1,163 @@
+---
+title: "Reports: Analytics, Financial Charts, and Marketing Insights"
+sidebarTitle: "Reports"
+description: "Analyze appointment activity, income trends, new patient growth, and marketing channel performance across custom date ranges. Export an executive PDF report."
+---
+
+The **Reports** module is the analytics hub of FemeSalud, transforming raw appointment and consultation data into actionable intelligence. Clinic managers and physicians can review period-specific KPIs, trace monthly income trends over the last 12 months, identify which marketing channels drive the most new patients, and export a polished executive PDF for stakeholder review — all from a single, date-filtered interface.
+
+---
+
+## Date Range Filter
+
+All statistics, charts, and tables on the Reports page respond to a single date range selector at the top of the view.
+
+<CardGroup cols={2}>
+  <Card title="Custom Range" icon="calendar-range">
+    Two date pickers (**Desde** / **Hasta**) let you define an exact start and end date. The page defaults to the last 90 days on load.
+  </Card>
+  <Card title="Quick Presets" icon="bolt">
+    Three shortcut buttons instantly reframe the analysis: **7 días**, **30 días**, and **90 días** — each sets the end date to today and the start date accordingly.
+  </Card>
+</CardGroup>
+
+<Note>
+  Income figures throughout the Reports module are calculated **exclusively from `completada` appointments that have a price set**. Scheduled or cancelled appointments are counted for activity metrics but do not contribute to revenue totals.
+</Note>
+
+---
+
+## Report Tabs
+
+<Tabs>
+  <Tab title="Vista General">
+    The overview tab combines a summary KPI strip with a live upcoming-appointments table.
+
+    ### KPI Cards
+
+    <CardGroup cols={2}>
+      <Card title="Citas en Rango" icon="calendar-clock">
+        Total number of appointments (any status) whose `scheduled_at` falls within the selected date range.
+      </Card>
+      <Card title="Completadas" icon="circle-check">
+        Count of appointments with `status = completada` in the selected range.
+      </Card>
+      <Card title="Pacientes Nuevos" icon="users">
+        Number of patient records created within the selected date range, sourced from `usePatientsCountByDateRange`.
+      </Card>
+      <Card title="Ingresos" icon="dollar-sign">
+        Sum of fees from all `completada` appointments with a price set in the selected range. Displayed in USD.
+      </Card>
+    </CardGroup>
+
+    ### Upcoming Appointments Table (Planificación)
+
+    Below the KPIs, the **Próximas citas** table shows the next scheduled (`programada`) appointments starting from today, limited to the 10 closest entries. This section is independent of the date range filter — it always shows what is immediately ahead.
+
+    | Column | Description |
+    |---|---|
+    | **Fecha / Hora** | Date in `DD Mon` format plus 24-hour time (e.g., `15 ene · 09:30`) |
+    | **Paciente** | Patient's full name |
+    | **Médico** | Treating doctor resolved from the doctor map |
+    | **Motivo** | Appointment reason, or `—` when not specified |
+  </Tab>
+
+  <Tab title="Resumen Financiero">
+    The financial tab visualises income history to help the practice identify revenue peaks and seasonal patterns.
+
+    ### Monthly Income Bar Chart
+
+    An interactive bar chart (powered by Recharts) plots the **last 12 months** of collected income from `completada` appointments. Each bar represents one calendar month, labelled as `Mes 'YY` (e.g., *Ene '25*). Hovering a bar shows the exact amount formatted in Spanish locale (e.g., `$1.250`).
+
+    The chart is calculated from **all time** appointment data — not restricted to the active date range — so the trend is always visible regardless of the period filter.
+
+    ### Monthly Breakdown Table
+
+    Alongside the chart, a sortable breakdown table lists each month in reverse chronological order with the total amount invoiced, providing a precise figure for reporting or reconciliation.
+
+    | Column | Description |
+    |---|---|
+    | **Mes / Año** | Full month name and year (e.g., *Enero 2025*) |
+    | **Monto ($)** | Total income from `completada` appointments in that month |
+  </Tab>
+
+  <Tab title="Canales de Marketing">
+    The marketing tab reveals how patients discover the clinic by aggregating the `contact_channel` field from consultation records within the selected date range.
+
+    ### Channel Performance
+
+    Each registered channel is displayed as a labelled progress bar showing its share of total consultations, alongside a donut chart for a visual proportion overview.
+
+    | Column | Description |
+    |---|---|
+    | **Canal** | Channel name as entered on the consultation (e.g., WhatsApp, Instagram, Facebook, Radio, Recomendado) |
+    | **Consultas** | Number of consultations where this channel was recorded |
+    | **Porcentaje** | Share of all consultations with a recorded channel (e.g., `42.3%`) |
+
+    Channels are sorted by consultation count descending. Only consultations that have a non-null `contact_channel` value are counted; the total used for percentage calculation excludes records with no channel.
+
+    <Tip>
+      **Fill in `contact_channel` on every consultation** to get reliable marketing data. When staff register a new consultation, they should always record how the patient heard about the clinic. Incomplete data skews the percentages and may cause high-performing channels — such as word-of-mouth referrals — to appear underrepresented.
+    </Tip>
+  </Tab>
+</Tabs>
+
+---
+
+## Executive PDF Export
+
+Clicking **Exportar Reporte Ejecutivo** calls `exportPDF()`, which dynamically imports `jsPDF` and `jspdf-autotable` to build a multi-page A4 document. The report is saved as:
+
+```
+femesalud-reporte-ejecutivo-{from}-{to}.pdf
+```
+
+For example: `femesalud-reporte-ejecutivo-2025-01-01-2025-03-31.pdf`
+
+### Report Structure
+
+The PDF is organised into three numbered sections, each rendered as a styled grid table with a mauve header row:
+
+<Steps>
+  <Step title="Clinic Header and Title">
+    The document opens with the clinic's address, phone number, RIF (if configured), and trade name in the same format used on individual receipts. The report title **REPORTE ANALÍTICO Y EJECUTIVO** is underlined at the centre. The selected date range and generation timestamp are printed below the title.
+  </Step>
+  <Step title="Section 1 — Resumen de Indicadores Clave">
+    A six-row KPI table covering the selected period:
+
+    | Indicador | Tipo |
+    |---|---|
+    | Ingresos Totales (Citas Completadas) | Financiero |
+    | Pacientes Nuevos Registrados | Marketing |
+    | Citas Totales Agendadas | Operativo |
+    | Citas Completadas | Operativo |
+    | Citas Programadas (Pendientes) | Operativo |
+    | Citas Canceladas | Operativo |
+  </Step>
+  <Step title="Section 2 — Canales de Adquisición de Pacientes">
+    A table listing every marketing channel recorded in consultations within the date range, with the consultation count and percentage impact. Rows are sorted by count descending.
+  </Step>
+  <Step title="Section 3 — Desglose Histórico de Ingresos">
+    A two-column table showing total income per month for the last 12 months, independent of the date range filter. Useful for year-over-year context in board or investor presentations.
+  </Step>
+</Steps>
+
+Every page of the PDF includes:
+- A **clinic logo watermark** at 3% opacity centred on the page
+- A **footer** with the text *FemeSalud — Reporte Ejecutivo de Gestión* on the left and `Página X de Y` on the right
+
+---
+
+## Marketing Channels Reference
+
+The `contact_channel` field on a consultation record tracks the acquisition source for each patient visit. Staff should select the appropriate value when registering a consultation. Common channels include:
+
+| Channel | Description |
+|---|---|
+| **WhatsApp** | Patient contacted the clinic via WhatsApp |
+| **Instagram** | Discovered through the clinic's Instagram profile |
+| **Facebook** | Reached via Facebook page or ads |
+| **Radio** | Heard about the clinic through a radio broadcast |
+| **Recomendado** | Referred by another patient, friend, or colleague |
+
+Additional free-text values are supported — whatever is entered in the `contact_channel` field will be grouped and surfaced in the marketing tab automatically.

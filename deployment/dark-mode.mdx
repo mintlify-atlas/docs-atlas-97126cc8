@@ -1,0 +1,103 @@
+---
+title: "Dark Mode: Theme Switching and Persistence"
+sidebarTitle: "Dark Mode"
+description: "FemeSalud supports light and dark mode. The selected theme persists in localStorage and respects the user's system preference on first visit."
+---
+
+FemeSalud ships with full light and dark mode support. The active theme persists across sessions using `localStorage`, so users never have to set their preference twice. On the very first visit, the app reads the operating system's color scheme preference and defaults to it automatically — no account setting, no extra click.
+
+## How It Works
+
+Theme state is managed entirely by the `useTheme` hook in `src/hooks/useTheme.ts`. The hook initializes state using a lazy `useState` initializer that runs synchronously on mount:
+
+1. It calls `localStorage.getItem('theme')` and returns the stored value if it's `"light"` or `"dark"`.
+2. If nothing is stored, it checks `window.matchMedia('(prefers-color-scheme: dark)')` to honor the system preference.
+3. If neither source provides a value, it defaults to `"light"`.
+
+After initialization, a `useEffect` watches the `theme` value. Whenever it changes, the effect adds or removes the `dark` class on the `<html>` element and writes the new value back to `localStorage`. Tailwind CSS v4 uses the `dark` class strategy — every component's dark variant activates the moment that class lands on the root element.
+
+## The useTheme Hook
+
+```typescript
+export function useTheme() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') return stored;
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
+  return { theme, toggleTheme, isDark: theme === 'dark' };
+}
+```
+
+The hook returns three values:
+
+| Return value | Type | Description |
+| --- | --- | --- |
+| `theme` | `'light' \| 'dark'` | The currently active theme string |
+| `toggleTheme` | `() => void` | Flips between light and dark |
+| `isDark` | `boolean` | Convenience boolean for conditional rendering |
+
+## Using the Hook
+
+Import `useTheme` into any component that needs to read or change the theme:
+
+```typescript
+import { useTheme } from '@/hooks/useTheme';
+
+function ThemeToggle() {
+  const { isDark, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme}>
+      {isDark ? 'Switch to Light' : 'Switch to Dark'}
+    </button>
+  );
+}
+```
+
+Because `useTheme` writes to `localStorage` and directly mutates the `<html>` class, the change takes effect immediately — no context provider, no prop drilling. Any component that calls `useTheme` in the same render tree will see the updated `theme` value on the next render.
+
+## Theme Toggle in the Sidebar
+
+The `AppSidebar` component includes a built-in theme toggle button at the bottom of the navigation panel. It calls `toggleTheme()` from `useTheme` directly. Users can switch between light and dark mode at any point during a session without leaving their current page — the transition is instant and the preference is saved before the next page load.
+
+## CSS Variables
+
+FemeSalud uses Tailwind CSS v4 with a full set of CSS custom properties (defined in `src/styles.css`) for every design token — backgrounds, foregrounds, borders, sidebar colors, chart palettes, and more. The `:root` block defines the light theme values and the `.dark` block overrides them:
+
+```css
+:root {
+  --background: oklch(0.995 0.002 280);
+  --foreground: oklch(0.22 0.03 280);
+  --primary: oklch(0.62 0.20 305);
+  /* ...all other tokens */
+}
+
+.dark {
+  --background: oklch(0.16 0.02 280);
+  --foreground: oklch(0.97 0.005 280);
+  --primary: oklch(0.72 0.18 305);
+  /* ...all other tokens */
+}
+```
+
+When the `dark` class is present on `<html>`, every CSS variable in `.dark` takes precedence over `:root`. Because all Tailwind color utilities reference these variables (e.g. `bg-background`, `text-foreground`, `border-border`), the entire UI re-themes in a single class toggle — no per-component dark mode overrides, no duplicate style rules.
+
+<Note>
+  During SSR, TanStack Start renders the initial HTML on the server before any JavaScript runs. At that point, `localStorage` and `window.matchMedia` are unavailable, so the server always renders without a `dark` class on `<html>`. The correct theme class is applied client-side during React hydration. This brief unstyled moment is expected behavior — it is not a flash of incorrect theme in most cases because the default `light` styles and the server-rendered output match for first-time visitors. Users who have a stored `dark` preference may see a very short light-to-dark transition on hard refresh; this is an inherent limitation of SSR with client-side theme detection.
+</Note>

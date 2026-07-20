@@ -1,20 +1,66 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "FemeSalud: Premium Clinical Management for Modern Practices"
+sidebarTitle: "Home"
+description: "FemeSalud is a full-stack SaaS platform for gynecology and obstetrics clinics. Manage patients, appointments, consultations, billing, and PDF exports in one place."
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+FemeSalud is a premium clinical management suite designed for gynecology and obstetrics professionals. Built on TanStack Start, React 19, Supabase, and Tailwind CSS, it delivers real-time appointment scheduling, structured electronic medical records, integrated billing, and branded PDF document generation — all with server-side rendering for fast load times.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="stethoscope" href="/introduction">
+    Understand what FemeSalud is, who it's for, and how its modules fit together.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Clone the repo, configure environment variables, and run locally in minutes.
+  </Card>
+  <Card title="Environment Setup" icon="gear" href="/environment-setup">
+    Configure Supabase, set environment variables, and prepare for deployment.
+  </Card>
+  <Card title="Deploy to Vercel" icon="cloud" href="/deployment/vercel">
+    Push to production with Vercel's serverless edge infrastructure.
+  </Card>
+</CardGroup>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+## Core Modules
+
+<CardGroup cols={3}>
+  <Card title="Dashboard" icon="chart-line" href="/modules/dashboard">
+    Live KPIs, income charts, upcoming appointments, and notification feed.
+  </Card>
+  <Card title="Agenda" icon="calendar" href="/modules/agenda">
+    Day, week, month, and list views with real-time appointment sync.
+  </Card>
+  <Card title="Patients" icon="users" href="/modules/patients">
+    Full patient registry with gynecological and obstetric profiles.
+  </Card>
+  <Card title="Clinical Records" icon="file-medical" href="/modules/clinical-records">
+    Electronic medical records with notes, attachments, and timeline.
+  </Card>
+  <Card title="Consultations" icon="clipboard" href="/modules/consultations">
+    Structured consultation forms covering vitals, exams, and treatment plans.
+  </Card>
+  <Card title="Billing" icon="receipt" href="/modules/billing">
+    Track payments, confirm collections, and export PDF receipts.
+  </Card>
+</CardGroup>
+
+## Data Reference
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/reference/schema-overview">
+    Explore all Supabase tables, enums, RLS policies, and relationships.
+  </Card>
+  <Card title="API Hooks" icon="code" href="/reference/api-hooks">
+    React Query hooks for every resource — patients, appointments, consultations, and more.
+  </Card>
+  <Card title="PDF Exports" icon="file-pdf" href="/reference/pdf-exports">
+    Generate medical cards, full histories, rest certificates, and invoices as PDFs.
+  </Card>
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Role-based access control with Supabase RLS for admin and doctor roles.
+  </Card>
+</CardGroup>
+
+<Note>
+  FemeSalud is built for clinics that need a self-hosted or Vercel-deployed solution. All data stays in your own Supabase project — no shared multi-tenant database.
+</Note>

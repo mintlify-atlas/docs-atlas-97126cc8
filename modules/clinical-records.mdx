@@ -1,0 +1,116 @@
+---
+title: "Clinical Records: Electronic Medical History and Notes"
+sidebarTitle: "Clinical Records"
+description: "View the complete electronic medical record for each patient: consultation timeline, clinical notes, file attachments, and gynecological data — all in one screen."
+---
+
+The Clinical Records module (Historias Clínicas) provides a unified, read-optimised view of a patient's entire medical history. Rather than navigating between separate screens, clinicians work within a three-panel layout that keeps the patient list, clinical data, and consultation timeline always within reach. Every field displayed here is sourced directly from the `patients`, `consultations`, and `clinical_notes` tables in Supabase.
+
+## Layout
+
+The screen is divided into two main areas inside a responsive grid:
+
+<CardGroup cols={2}>
+  <Card title="Left Panel — Patient Sidebar" icon="sidebar">
+    A scrollable, searchable list of all patients (paginated at 20 per page). A search box filters by `full_name`, `email`, or `document_id` with a 350 ms debounce. Clicking a patient row loads their full clinical record in the right panel. Pagination controls navigate between sidebar pages.
+  </Card>
+  <Card title="Right Panel — Record Viewer" icon="file-medical">
+    A tabbed view with four tabs: **Cronología de Consultas**, **Ginecología y Obstetricia**, **Antecedentes Clínicos**, and **Ficha de Identificación**. An **Exportar Expediente** button in the header exports the full history as a PDF.
+  </Card>
+</CardGroup>
+
+When no patient is selected, the right panel shows a centred placeholder with a pulse animation. The sidebar and record area are independently scrollable using `ScrollArea` from the UI library.
+
+## Sidebar — Patient List
+
+The `HistoriasSidebar` component handles:
+
+- Debounced search input (350 ms) that queries `usePaginatedPatients` with `full_name`, `email`, and `document_id` filtering.
+- A clickable list where each row shows the patient's `full_name`, `document_id` (cédula), `historia_number`, and a short timestamp.
+- Pagination at the bottom with previous/next controls and a "Page X of Y" counter.
+- Selecting a patient sets `selectedPatientId`, which triggers `usePatientConsultations` to load the consultation history.
+
+## Clinical Data Tabs
+
+### Cronología de Consultas (Timeline)
+
+The `HistoriasTimeline` component renders all consultations for the selected patient in chronological order, newest first. Each consultation appears as a collapsible card on a vertical timeline. The collapsed header shows:
+
+- Date in `dd MMM yyyy` format
+- Visit type badge (`CONTROL`, `EMERGENCIA`, `CONSULTA_NUEVA`, `POST_TRATAMIENTO`, `OTRO`)
+- Diagnosis preview (truncated)
+
+Expanding a card reveals:
+
+- **Subjective exam** (reason for visit / patient narrative)
+- **Vitals grid**: height, weight, blood pressure, heart rate, temperature, respiratory rate, and auto-calculated BMI
+- **Physical exam by system**: skin, head/neck, breasts, abdomen, gynecological, extremities, neurological
+- **Special exams**: colposcopy findings (acetic acid test, Lugol test, clock positions, relative positions) and obstetric control (gestational age, fetal weight, uterine height, presentation, fetal heart rate)
+- **Diagnosis and indications**: the treatment prescription, with inline **Imprimir** (PDF) and **WhatsApp** share buttons
+- **Complementary exams, plan, and next appointment date**
+- **Consumables used**: chips listing each material and quantity
+- Footer with the recording doctor's name
+
+### Ginecología y Obstetricia
+
+Displays the patient's `gynecological_data` and `obstetric_data` objects in a two-column card layout. Obstetric data includes the GPCA summary block (Gestas, Partos, Cesáreas, Abortos) displayed as a prominent four-cell grid.
+
+### Antecedentes Clínicos
+
+Displays `family_history` (mother, father, siblings, children) and `personal_history` (tobacco, alcohol, drugs, base pathology, surgical, allergies). Allergies are styled in **red** (`text-destructive`) throughout the record as a clinical safety highlight.
+
+### Ficha de Identificación
+
+Full demographic and identification panel: `full_name`, `document_id`, `historia_number`, `phone`, `email`, `marital_status`, `education_level`, `occupation`, `birth_date`, `birthplace`, `ethnicity`, `first_visit_date`, `assigned_doctor_id`, `address`, `consultation_reason`, `current_illness`, and `notes`.
+
+## Clinical Notes
+
+The `ClinicalNotesPanel` component is accessible from the patient detail sidebar in the Patients module. It provides free-form note-keeping that complements the structured consultation form.
+
+### Creating a Note
+
+Click **Nueva nota** to expand the creation form:
+
+| Field | Required | Description |
+|---|---|---|
+| `title` | ✅ | Short label for the note (e.g., "Consulta inicial", "Resultado laboratorio"). |
+| `content` | ❌ | Free-text body — supports multi-line input. |
+| `note_date` | ❌ | Date the note applies to; defaults to today. |
+| Attachments | ❌ | One or more files attached via the **Adjuntar** button. |
+
+Accepted file formats: `image/*` (JPEG, PNG, WebP, etc.) and `application/pdf`.
+
+### File Attachments
+
+Files are uploaded to Supabase Storage in the `clinical-attachments` bucket under the path `{patient_id}/{timestamp}_{random}_{filename}`. The `ClinicalAttachment` interface used for each file is:
+
+```typescript
+export interface ClinicalAttachment {
+  path: string;
+  name: string;
+  type: string;
+  size: number;
+}
+```
+
+Attachments are not served via public URLs. When a user clicks an attachment chip, `getAttachmentUrl` calls `createSignedUrl` to generate a **30-minute signed URL** before opening the file in a new tab. This ensures access is always authenticated and time-limited.
+
+<Note>
+  The `clinical-attachments` Storage bucket must be created manually in your Supabase project before uploading any attachments. Go to **Storage → New bucket**, name it `clinical-attachments`, and set it to **private** (not public). The signed URL mechanism handles access control for authenticated users.
+</Note>
+
+### Searching and Filtering Notes
+
+The notes panel includes:
+
+- **Full-text search** across `title` and `content` (case-insensitive, client-side).
+- **Date range filter**: "Desde" and "Hasta" date inputs filter by `note_date`.
+- A **Limpiar** link clears all active filters at once.
+
+### Pagination
+
+Notes are paginated at **5 per page**. The page counter and previous/next arrows appear only when there are more than 5 filtered notes. Changing any filter resets the page to 1.
+
+### Deleting a Note
+
+Hovering over a note card reveals a `Trash2` icon button. Confirming deletion removes both the database record and all associated Storage objects by calling `supabase.storage.from('clinical-attachments').remove(attachments.map(a => a.path))` before the row delete.

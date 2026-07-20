@@ -1,0 +1,160 @@
+---
+title: "Billing and Collections: Track Payments and Export Receipts"
+sidebarTitle: "Billing"
+description: "Manage consultation fees, confirm payments with method and reference, track outstanding balances, and generate branded PDF receipts for each appointment."
+---
+
+The **Billing and Collections** module gives your practice a real-time view of every appointment's financial standing — from pending invoices to confirmed payments. Staff can set consultation fees, mark appointments as paid with a specific method, add a payment reference for bank transfers or Zelle transactions, and instantly generate a signed PDF receipt that can be handed or sent to the patient.
+
+---
+
+## KPI Cards
+
+At the top of the page, four summary cards give a quick snapshot of the practice's financial health. Metrics are drawn from the current month and the two preceding months.
+
+<CardGroup cols={2}>
+  <Card title="Ingresos Totales" icon="trending-up">
+    The sum of all fees collected from appointments with `status = completada` **and** a confirmed `payment_method`. Displayed in USD alongside the number of billed consultations.
+  </Card>
+  <Card title="Cuentas por Cobrar" icon="receipt">
+    Outstanding balance across all `programada` appointments that have a price set, plus any `completada` appointments where payment has not yet been confirmed. Shows count of pending consultations.
+  </Card>
+  <Card title="Desempeño de Cobranza" icon="sparkles">
+    A qualitative rating — **Perfecto**, **Excelente**, **Bueno**, or **Atención Requerida** — calculated from the ratio of pending earnings to total potential income, prompting the team to follow up on unconfirmed payments.
+  </Card>
+  <Card title="Citas Cobradas" icon="check-circle">
+    A count of `completada` appointments that have a `payment_method` confirmed, used as the denominator context for the Ingresos Totales card.
+  </Card>
+</CardGroup>
+
+---
+
+## Appointment Table
+
+The billing table lists every appointment in the loaded window (current month plus two prior months), paginated at **15 rows per page**.
+
+| Column | Description |
+|---|---|
+| **Paciente** | Patient's full name |
+| **Fecha Cita** | Scheduled date and time, formatted as `DD Mon YYYY HH:MM` |
+| **Concepto** | Appointment reason; falls back to `"Consulta médica general"` when blank |
+| **Médico** | Treating doctor resolved from the doctor map |
+| **Monto** | Fee in USD (`$0` when no price is set) |
+| **Estado** | Visual badge: **Cobrada** (green), **Pendiente / Por Cobrar** (amber), **Cancelada** (red) |
+| **Acciones** | Edit icon or **Confirmar Pago** button, plus a download icon for completed appointments |
+
+A **Confirmar Pago** call-to-action button appears in place of the edit icon specifically for appointments whose `status` is `completada` but that still lack a `payment_method` — the most common scenario after a doctor finalises a visit.
+
+---
+
+## Filters
+
+Use the filter bar to narrow the appointment list before acting on or exporting records.
+
+<CardGroup cols={2}>
+  <Card title="Search" icon="magnifying-glass">
+    Free-text search across **patient name** and **appointment reason** (case-insensitive).
+  </Card>
+  <Card title="Status" icon="funnel">
+    Filter by **Todas**, **Pendientes** (`programada`), or **Cobros Confirmados** (`completada`).
+  </Card>
+  <Card title="Mes" icon="calendar">
+    Month picker built dynamically from the dates present in the loaded appointments, formatted as `Mes YYYY` (e.g., *Enero 2025*).
+  </Card>
+  <Card title="Médico" icon="user-doctor">
+    Visible only when the clinic has more than one registered doctor. Filters to all appointments assigned to the selected physician.
+  </Card>
+</CardGroup>
+
+---
+
+## Payment Methods Supported
+
+When confirming a payment, staff can choose from the following methods:
+
+| Value | Display Label |
+|---|---|
+| `efectivo` | Efectivo |
+| `zelle` | Zelle |
+| `pago_movil` | Pago Móvil |
+| `transferencia` | Transferencia Bancaria |
+| `tarjeta_debito` | Tarjeta de Débito (Punto) |
+| `tarjeta_credito` | Tarjeta de Crédito |
+| `seguro` | Seguro |
+
+---
+
+## Confirming a Payment
+
+Clicking the pencil icon — or the **Confirmar Pago** button — on any appointment opens the payment dialog. The dialog is pre-populated with the appointment's current values.
+
+| Field | Required | Notes |
+|---|---|---|
+| **Monto (USD)** | Yes | Must be `≥ 0`. Decimals accepted (`step = 0.01`). |
+| **Estado** | Yes | `programada`, `completada`, or `cancelada`. |
+| **Método de Pago** | **Yes, when `completada`** | Selecting `completada` reveals the payment details section. |
+| **Referencia** | No | Free-text field for transaction IDs, Zelle confirmation codes, etc. |
+
+<Warning>
+  **`payment_method` is mandatory when setting status to `completada`.** Attempting to save without selecting a payment method will show the error: *"Debe seleccionar un método de pago para marcar como completada"* and block the save. Setting the appointment to `cancelada` or reverting to `programada` clears both the method and the reference from the record.
+</Warning>
+
+---
+
+## Payment Confirmation Flow
+
+<Steps>
+  <Step title="Appointment Created as Programada">
+    When a consultation is booked through the Appointments module, it is saved with `status = programada`. It immediately appears in the billing table under the **Pendientes** filter. You can set the consultation fee at this stage.
+  </Step>
+  <Step title="Set the Consultation Fee">
+    Open the edit dialog and enter the amount in USD. The fee is saved independently of the status, so the balance visible in the **Cuentas por Cobrar** KPI updates right away.
+  </Step>
+  <Step title="Mark as Completada and Select Payment Method">
+    After the patient is attended, open the dialog again, change **Estado** to `Completada`, and select the payment method from the dropdown. Optionally add a payment reference (bank transfer number, Zelle confirmation, etc.). Click **Registrar Pago** to save. The appointment status badge turns green — **Cobrada** — and the amount moves from *Cuentas por Cobrar* to *Ingresos Totales*.
+  </Step>
+  <Step title="Export the PDF Receipt">
+    The download icon becomes active on all `completada` appointments. Click it to generate and download the receipt instantly.
+  </Step>
+</Steps>
+
+---
+
+## Exporting a PDF Receipt
+
+Clicking the download icon on any **Cobrada** appointment triggers `exportInvoice()`, which generates a single-page A4 PDF receipt using the clinic's registered information and the treating doctor's profile.
+
+### Receipt contents
+
+| Section | Details |
+|---|---|
+| **Clinic header** | Address lines, phone number, and RIF (if set in clinic settings) |
+| **Subtitle** | *Consultorio Ginecológico Obstétrico* + clinic trade name |
+| **Receipt number** | `FS-{first 8 characters of appointment ID, uppercased}` (e.g., `FS-A1B2C3D4`) |
+| **Issue date** | Taken from `scheduled_at` |
+| **Patient data** | Full name, service concept (appointment reason or *Consulta Ginecológica / Obstétrica*) |
+| **Payment details** | Method and reference number (when provided) |
+| **Service table** | Description, amount in USD, total |
+| **Doctor signature** | Treating doctor's full name and specialty, centred below a dashed signature line |
+| **Watermark** | Clinic logo at 4% opacity centred on the page |
+
+The file is saved locally as `Recibo_{PatientName}.pdf`.
+
+<Note>
+  The receipt reflects the doctor who is currently logged in at the time of export. If a receptionist exports the receipt, the clinic's default doctor name (*Médico Tratante*) and specialty (*Ginecólogo Obstetra*) will appear on the signature line unless the logged-in profile has a `full_name` and `specialty` set.
+</Note>
+
+---
+
+## Monthly Billing Report
+
+The **Exportar Reporte** button in the filter bar generates a full tabular PDF report via `exportMonthlyReport()`. The report respects the active month and doctor filters.
+
+The exported PDF includes:
+
+- Clinic header and report title (e.g., *Reporte de Facturación - Enero 2025*)
+- Financial summary: total collected, total outstanding, and record count
+- Full appointments table with columns: Fecha, Paciente, Concepto, Monto, Estado, Método, Referencia
+- Status cells colour-coded: green for *Cobrada*, amber for *Pendiente / Por Cobrar*, red for *Cancelada*
+
+The file is saved as `Reporte_Facturacion_{YYYY-MM}.pdf` (or `Reporte_Facturacion_General.pdf` when no month filter is active).

@@ -1,0 +1,299 @@
+---
+title: "Consultations Table: Clinical Data Fields and RPCs"
+sidebarTitle: "Consultations Schema"
+description: "Full field reference for consultations — vitals, physical exam, colposcopy, obstetric control, treatment plan, and consumables. Created and updated via Supabase RPC."
+---
+
+The `consultations` table is the richest clinical object in FemeSalud. A consultation is always linked to a parent appointment and captures the full encounter record: chief complaint, complete vitals, systematic physical examination, colposcopy findings, obstetric control measurements, and the treatment plan including diagnosis, indications, and follow-up date. Because a consultation may also consume materials (gloves, swabs, reagents), consumable line items are stored in a child table (`consultation_consumables`) and are always written atomically with the consultation itself through dedicated Supabase RPC functions.
+
+<Note>
+  Consultations are **never inserted or updated with direct table writes**. All create and update operations must go through the `create_consultation_rpc` and `update_consultation_rpc` Supabase remote procedure calls. This ensures the consultation row and its consumables are always committed together in a single database transaction, preventing orphaned or mismatched records.
+</Note>
+
+## Visit Type Enum
+
+```typescript
+export type VisitType =
+  | "CONTROL"
+  | "EMERGENCIA"
+  | "CONSULTA_NUEVA"
+  | "POST_TRATAMIENTO"
+  | "OTRO";
+```
+
+| Value              | Clinical meaning                                    |
+| ------------------ | --------------------------------------------------- |
+| `CONSULTA_NUEVA`   | First consultation for a new problem or episode.   |
+| `CONTROL`          | Routine follow-up or monitoring visit.              |
+| `EMERGENCIA`       | Unscheduled urgent or emergency encounter.          |
+| `POST_TRATAMIENTO` | Post-treatment review after a procedure or therapy. |
+| `OTRO`             | Any other visit type not covered above.             |
+
+## Core Identity Fields
+
+<ResponseField name="id" type="uuid" required>
+  Primary key. Auto-generated UUID returned by the RPC after a successful insert.
+</ResponseField>
+
+<ResponseField name="appointment_id" type="uuid" required>
+  Foreign key to `appointments.id`. Each appointment can have at most one consultation. The `has_consultation` flag on `AppointmentWithPatient` reflects whether this link exists.
+</ResponseField>
+
+<ResponseField name="patient_id" type="uuid" required>
+  Foreign key to `patients.id`. Denormalised from the appointment to allow direct patient-scoped queries without joining through appointments.
+</ResponseField>
+
+<ResponseField name="doctor_id" type="uuid">
+  Foreign key to `profiles.id`. Nullable — may be `null` if the consultation was created by a user without a matching profile row.
+</ResponseField>
+
+<ResponseField name="visit_type" type="visit_type_enum" required>
+  Classifies the clinical purpose of the visit. Defaults to `CONSULTA_NUEVA` on insert if not provided. See the VisitType enum above for accepted values.
+</ResponseField>
+
+<ResponseField name="is_first_visit" type="boolean" required>
+  `true` when this is the patient's first consultation at the clinic. Defaults to `false`. Used to auto-populate initial anamnesis sections in the UI.
+</ResponseField>
+
+<ResponseField name="subjective_exam" type="text">
+  Subjective examination — the patient's own description of their symptoms and concerns (anamnesis). Nullable.
+</ResponseField>
+
+<ResponseField name="contact_channel" type="text">
+  Marketing or referral channel through which the patient first contacted the clinic (e.g. `Instagram`, `Referido`, `Google`). Nullable. Used in CRM and acquisition reports.
+</ResponseField>
+
+## Vitals Fields
+
+<ResponseField name="height_cm" type="number">
+  Patient height in centimetres. Nullable.
+</ResponseField>
+
+<ResponseField name="weight_kg" type="number">
+  Patient weight in kilograms. Nullable.
+</ResponseField>
+
+<ResponseField name="bmi" type="number">
+  Body Mass Index. Nullable. May be auto-calculated in the UI from `height_cm` and `weight_kg`, but is stored as a separate column so it can be queried directly.
+</ResponseField>
+
+<ResponseField name="blood_pressure" type="text">
+  Arterial blood pressure as a free-text string in `systolic/diastolic` format (e.g. `"120/80"`). Nullable.
+</ResponseField>
+
+<ResponseField name="heart_rate" type="number">
+  Heart rate in beats per minute. Nullable.
+</ResponseField>
+
+<ResponseField name="respiratory_rate" type="number">
+  Respiratory rate in breaths per minute. Nullable.
+</ResponseField>
+
+<ResponseField name="temperature" type="number">
+  Body temperature in degrees Celsius. Nullable.
+</ResponseField>
+
+## Physical Examination Fields
+
+All physical exam fields are nullable free-text strings describing findings for each body system.
+
+<ResponseField name="skin" type="text">
+  Skin examination findings. Nullable.
+</ResponseField>
+
+<ResponseField name="head_neck" type="text">
+  Head and neck examination findings. Nullable.
+</ResponseField>
+
+<ResponseField name="breasts" type="text">
+  Breast examination findings. Nullable.
+</ResponseField>
+
+<ResponseField name="abdomen" type="text">
+  Abdominal examination findings. Nullable.
+</ResponseField>
+
+<ResponseField name="gynecological" type="text">
+  Gynecological examination findings (speculum, bimanual). Nullable.
+</ResponseField>
+
+<ResponseField name="extremities" type="text">
+  Extremities examination findings. Nullable.
+</ResponseField>
+
+<ResponseField name="neurological" type="text">
+  Neurological examination findings. Nullable.
+</ResponseField>
+
+## Colposcopy Fields
+
+Colposcopy fields are populated when the visit includes a colposcopic procedure. All fields are nullable.
+
+<ResponseField name="acetic_acid_test" type="text">
+  Result or description of the acetic acid (VIA) test finding. Nullable.
+</ResponseField>
+
+<ResponseField name="acetic_clock_position" type="text">
+  Clock-face position of the acetic acid finding on the cervix (e.g. `"3"`). Nullable.
+</ResponseField>
+
+<ResponseField name="acetic_relative_position" type="text">
+  Relative anatomical position of the acetic acid finding (e.g. `"anterior lip"`). Nullable.
+</ResponseField>
+
+<ResponseField name="lugol_test" type="text">
+  Result or description of the Lugol's iodine (VILI) test finding. Nullable.
+</ResponseField>
+
+<ResponseField name="lugol_clock_position" type="text">
+  Clock-face position of the Lugol finding on the cervix. Nullable.
+</ResponseField>
+
+<ResponseField name="lugol_relative_position" type="text">
+  Relative anatomical position of the Lugol finding. Nullable.
+</ResponseField>
+
+## Obstetric Control Fields
+
+These fields are used during prenatal or obstetric follow-up consultations. All fields are nullable.
+
+<ResponseField name="gestational_age" type="text">
+  Gestational age at the time of the visit (e.g. `"28 weeks + 3 days"`). Stored as text to accommodate mixed formats. Nullable.
+</ResponseField>
+
+<ResponseField name="fetal_weight" type="number">
+  Estimated fetal weight in grams. Nullable.
+</ResponseField>
+
+<ResponseField name="obstetric_bp" type="text">
+  Obstetric blood pressure reading in `systolic/diastolic` format. Separate from the general `blood_pressure` vital to allow independent tracking. Nullable.
+</ResponseField>
+
+<ResponseField name="uterine_height" type="number">
+  Uterine fundal height in centimetres measured by tape measure. Nullable.
+</ResponseField>
+
+<ResponseField name="presentation" type="text">
+  Fetal presentation (e.g. `cefálica`, `podálica`, `transversa`). Nullable.
+</ResponseField>
+
+<ResponseField name="fetal_heart_rate" type="number">
+  Fetal heart rate in beats per minute. Nullable.
+</ResponseField>
+
+<ResponseField name="fetal_movements" type="text">
+  Description of fetal movement activity as reported by the patient or observed. Nullable.
+</ResponseField>
+
+<ResponseField name="edema" type="text">
+  Presence and severity of oedema (e.g. `"No"`, `"+/+++"`). Nullable.
+</ResponseField>
+
+<ResponseField name="alarm_signs" type="text">
+  Presence and description of obstetric alarm signs. Nullable.
+</ResponseField>
+
+## Treatment & Plan Fields
+
+<ResponseField name="diagnosis" type="text">
+  Clinical diagnosis or differential diagnosis at the end of the encounter. Nullable.
+</ResponseField>
+
+<ResponseField name="indications" type="text">
+  Prescription or treatment indications given to the patient. May be populated from a `prescription_templates` row. Nullable.
+</ResponseField>
+
+<ResponseField name="complementary_exams" type="text">
+  Additional examinations or tests ordered during the consultation (labs, imaging, etc.). Nullable.
+</ResponseField>
+
+<ResponseField name="plan" type="text">
+  Overall clinical management plan narrative. Nullable.
+</ResponseField>
+
+<ResponseField name="next_appointment_date" type="date string">
+  ISO 8601 date (`YYYY-MM-DD`) suggested for the patient's next visit. Nullable.
+</ResponseField>
+
+## Audit Fields
+
+<ResponseField name="created_at" type="timestamptz" required>
+  Timestamp set automatically by the database when the consultation is first created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="timestamptz" required>
+  Timestamp updated automatically on each modification.
+</ResponseField>
+
+## ConsultationConsumable Sub-table
+
+Materials used during a consultation are stored in the `consultation_consumables` table. Rows in this table are always replaced wholesale when a consultation is updated — the RPC deletes existing consumables and inserts the new set in the same transaction.
+
+<ResponseField name="id" type="uuid" required>
+  Primary key. Auto-generated UUID.
+</ResponseField>
+
+<ResponseField name="consultation_id" type="uuid" required>
+  Foreign key to `consultations.id`. Links the consumable to its parent consultation.
+</ResponseField>
+
+<ResponseField name="item_name" type="text" required>
+  Name of the material or supply item used (e.g. `"Guantes de látex"`, `"Ácido acético 5%"`).
+</ResponseField>
+
+<ResponseField name="quantity" type="number" required>
+  Quantity of the item consumed. Defaults to `1`.
+</ResponseField>
+
+<ResponseField name="unit" type="text">
+  Unit of measure (e.g. `"par"`, `"ml"`, `"unidad"`). Nullable.
+</ResponseField>
+
+<ResponseField name="created_at" type="timestamptz" required>
+  Timestamp set automatically when the row is inserted.
+</ResponseField>
+
+The TypeScript interface mirroring this table is:
+
+```typescript
+export interface ConsultationConsumable {
+  id?: string;
+  consultation_id?: string;
+  item_name: string;
+  quantity: number;
+  unit: string | null;
+}
+```
+
+## Supabase RPCs
+
+### `create_consultation_rpc`
+
+Creates a new consultation and its associated consumables in a single database transaction.
+
+```typescript
+const { data, error } = await supabase.rpc("create_consultation_rpc", {
+  p_consultation: consultationData, // ConsultationInput (without consumables)
+  p_consumables: consumables,       // ConsultationConsumable[] (without id/consultation_id)
+});
+```
+
+Returns the newly created `Consultation` object, including the generated `id`.
+
+### `update_consultation_rpc`
+
+Updates an existing consultation's fields and **replaces** all its consumables atomically.
+
+```typescript
+const { data, error } = await supabase.rpc("update_consultation_rpc", {
+  p_consultation_id: id,  // uuid of the consultation to update
+  p_patch: patch,         // Partial<ConsultationInput> — only changed fields
+  p_consumables: consumables, // Full new list of ConsultationConsumable[]
+});
+```
+
+The existing `consultation_consumables` rows are deleted and re-inserted within the same transaction, so the consumables list is always consistent with the patch. Passing an empty array clears all consumables.
+
+<Note>
+  Because both RPCs are transactional, a failure in either the consultation write or the consumables write rolls back the entire operation. The client will receive a Supabase `PostgrestError` and no partial data will be committed to the database.
+</Note>

@@ -1,72 +1,97 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "FemeSalud",
+  "theme": "willow",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#351137",
+    "light": "#ef7da4",
+    "dark": "#8c4c6c"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
+  "favicon": "https://media.brand.dev/fb5fa0f1-c311-4f72-9d95-281b5b5d0e11.png",
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/KevxxAlva/femesalud-zen-flow"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/KevxxAlva/femesalud-zen-flow"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "environment-setup"
+            ]
+          },
+          {
+            "group": "Core Modules",
+            "pages": [
+              "modules/dashboard",
+              "modules/agenda",
+              "modules/patients",
+              "modules/clinical-records",
+              "modules/consultations"
+            ]
+          },
+          {
+            "group": "Finance & Reports",
+            "pages": [
+              "modules/billing",
+              "modules/reports"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/user-roles",
+              "admin/clinic-settings",
+              "admin/crm"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/vercel",
+              "deployment/dark-mode"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Data Reference",
+        "groups": [
+          {
+            "group": "Database Schema",
+            "pages": [
+              "reference/schema-overview",
+              "reference/patients-schema",
+              "reference/appointments-schema",
+              "reference/consultations-schema"
+            ]
+          },
+          {
+            "group": "PDF Exports",
+            "pages": [
+              "reference/pdf-exports"
+            ]
+          },
+          {
+            "group": "API Hooks",
+            "pages": [
+              "reference/api-hooks"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

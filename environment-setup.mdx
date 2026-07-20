@@ -1,0 +1,132 @@
+---
+title: "Configure Supabase and Environment Variables"
+sidebarTitle: "Environment Setup"
+description: "Set up your Supabase project, apply the database schema, configure required environment variables, and prepare FemeSalud for local development or production."
+---
+
+Before FemeSalud can serve its first request, several pieces of infrastructure must be in place: a Supabase project with the correct tables and Row Level Security policies, a storage bucket for clinical file attachments, and environment variables wired up on both the client and server. This page covers every configuration step in order — complete them once for local development and repeat the environment variable step for each deployment environment (staging, production) in Vercel.
+
+## Required Environment Variables
+
+FemeSalud uses two separate groups of environment variables: `VITE_`-prefixed variables that Vite injects at build time and makes available in the browser, and non-prefixed variables that are only available to server-side code at runtime.
+
+```bash .env
+# ── Client-side (injected by Vite at build time) ─────────────────────────────
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# ── Server-side (read at request time by auth middleware) ─────────────────────
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
+```
+
+<Warning>
+  Never commit your `.env` file to version control. Add it to `.gitignore` immediately. Although `VITE_SUPABASE_ANON_KEY` is a **public** key designed for browser use, leaking your full `.env` file can still expose server-only secrets you add later (such as a service role key or third-party API credentials).
+</Warning>
+
+The table below describes every variable and where to find its value:
+
+| Variable | Side | Description |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Client + Server | Your Supabase project URL. Found in **Project Settings → API → Project URL**. |
+| `VITE_SUPABASE_ANON_KEY` | Client + Server | Supabase `anon` / public key. Found in **Project Settings → API → Project API Keys**. |
+| `SUPABASE_URL` | Server only | Same project URL as above, read by `auth-middleware.ts` at request time. |
+| `SUPABASE_PUBLISHABLE_KEY` | Server only | Same anon key as above, read by `auth-middleware.ts` at request time. |
+
+<Note>
+  `VITE_SUPABASE_URL` and `SUPABASE_URL` point to the same Supabase project — they are duplicated because Vite's build-time injection (`import.meta.env`) is not available inside server functions, which instead read from `process.env` at runtime.
+</Note>
+
+### Setting Variables in Vercel
+
+For production and preview deployments, add these variables in the Vercel dashboard:
+
+1. Open your project in [vercel.com](https://vercel.com).
+2. Go to **Settings** → **Environment Variables**.
+3. Add all four variables listed above, selecting the appropriate environments (Production, Preview, Development).
+
+## Supabase Project Setup
+
+### 1. Create a New Supabase Project
+
+1. Sign in at [app.supabase.com](https://app.supabase.com).
+2. Click **New project**, choose your organization, enter a project name, set a strong database password, and select a region close to your users.
+3. Wait for the project to provision (approximately 1–2 minutes).
+
+### 2. Enable Email Authentication
+
+1. In your Supabase project, go to **Authentication** → **Providers**.
+2. Ensure **Email** is enabled. For production clinics, consider disabling the "Confirm email" option only if you are managing user invitations manually.
+3. Under **Authentication** → **URL Configuration**, set your **Site URL** to your production domain (e.g., `https://your-clinic.vercel.app`).
+
+### 3. Apply the Database Schema
+
+FemeSalud requires the following tables to exist in the `public` schema. Apply the schema SQL from the project repository via the Supabase **SQL Editor** or the Supabase CLI:
+
+| Table | Purpose |
+|---|---|
+| `patients` | Core patient demographic and contact records |
+| `appointments` | Scheduled appointments linking patients and doctors |
+| `consultations` | Full consultation records including vitals, exam findings, diagnosis, and treatment plan |
+| `clinical_notes` | Free-form clinical notes with optional file attachments |
+| `consultation_consumables` | Consumable items used during a consultation (linked to a consultation) |
+| `profiles` | Extended user profile data linked to Supabase Auth users |
+| `user_roles` | Maps authenticated users to their `admin` or `doctor` role |
+| `prescription_templates` | Saved prescription templates for fast reuse during consultations |
+| `clinic_info` | Clinic-level configuration (name, address, logo, contact details) |
+| `lab_results` | Laboratory result records linked to patients |
+
+<Warning>
+  Row Level Security (RLS) **must be enabled** on every table listed above. The application relies entirely on RLS to enforce data isolation between doctors and to protect patient data. Disabling RLS on any clinical table exposes all rows to every authenticated user regardless of their role.
+</Warning>
+
+## Supabase Storage
+
+FemeSalud uses Supabase Storage for clinical file uploads — such as lab result PDFs and imaging attachments linked to `clinical_notes` records.
+
+You must create the storage bucket manually before uploads will work:
+
+1. In your Supabase project, go to **Storage** → **Buckets**.
+2. Click **New bucket**.
+3. Set the bucket name to exactly: `clinical-attachments`
+4. Leave **Public bucket** **disabled**. Files should only be accessible through signed URLs generated server-side.
+5. Click **Save**.
+
+<Warning>
+  Do not make the `clinical-attachments` bucket public. Clinical documents are protected health information. Always generate short-lived signed URLs server-side when serving files to authenticated users, and ensure your Supabase Storage RLS policies restrict access to the patient's care team only.
+</Warning>
+
+## First Admin User
+
+After launching the app for the first time, the sign-up flow will create a Supabase Auth user — but that user will have **no role** and will not be able to access any protected routes until a role is assigned.
+
+To grant yourself the `admin` role:
+
+<Steps>
+  <Step title="Sign Up">
+    Navigate to your running FemeSalud instance and complete the sign-up form. Note the email address you used.
+  </Step>
+
+  <Step title="Find Your User ID">
+    In the Supabase dashboard, go to **Authentication** → **Users**. Locate your user and copy the **UUID** shown in the `id` column.
+  </Step>
+
+  <Step title="Insert the Admin Role">
+    Open the **SQL Editor** in your Supabase dashboard and run:
+
+    ```sql
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES ('your-user-uuid-here', 'admin');
+    ```
+
+    Replace `your-user-uuid-here` with the UUID you copied in the previous step.
+  </Step>
+
+  <Step title="Sign Back In">
+    Sign out and sign back in to your FemeSalud instance. Your session will now reflect the `admin` role and grant you full access to all modules, including user management.
+  </Step>
+</Steps>
+
+<Note>
+  Once you have an admin account, you can invite and assign roles to additional users (doctors, assistants) directly from the FemeSalud **Configuration** module — no further SQL queries are needed for subsequent users.
+</Note>

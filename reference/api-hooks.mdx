@@ -1,0 +1,703 @@
+---
+title: "React Query API Hooks: Complete Reference"
+sidebarTitle: "API Hooks"
+description: "All React Query hooks and utility functions in FemeSalud for patients, appointments, consultations, clinical notes, profiles, clinic info, auth, and realtime sync."
+---
+
+FemeSalud uses TanStack Query (React Query v5) as the single source of truth for all server state. Every data resource exposes query hooks that follow the `use{Resource}()` naming convention, plus mutation hooks for write operations. Mutation hooks implement full optimistic updates — the UI reflects the change immediately, and the cache is reconciled (or rolled back) once the server responds. Realtime updates from Supabase automatically invalidate the relevant queries, so multiple browser tabs always stay in sync without manual refresh.
+
+<Note>
+  All mutation hooks include optimistic updates via `onMutate`. The cache is updated before the server call completes. If the mutation fails, `onError` rolls back to the snapshot captured in `onMutate`. A final `onSettled` call invalidates the affected query keys to ensure consistency regardless of outcome.
+</Note>
+
+<Tip>
+  Query keys follow a flat, predictable convention. Use `queryClient.invalidateQueries({ queryKey: ['patients'] })` to manually bust any patient query, `['appointments']` for appointments, `['consultations']` for consultations, and so on. The key families are documented in each section below.
+</Tip>
+
+---
+
+## Patient Hooks
+
+Exported from `src/lib/api/patients.ts`. All queries read from the `patients` Supabase table.
+
+### Query Hooks
+
+<Accordion title="usePatients()">
+  Returns the full list of patients, ordered by `created_at` descending. The list query selects a lightweight projection (`id`, `full_name`, `email`, `phone`, `status`, `assigned_doctor_id`, `created_at`, `updated_at`, `document_id`, `historia_number`, `birth_date`) rather than the full row to keep list payloads small.
+
+  ```typescript
+  function usePatients(): UseQueryResult<Patient[]>
+  ```
+
+  **Query key:** `['patients']`
+</Accordion>
+
+<Accordion title="usePatient(id)">
+  Fetches a single patient by UUID, selecting all columns (`*`). The query is disabled when `id` is `null` or `undefined`.
+
+  ```typescript
+  function usePatient(id: string | undefined | null): UseQueryResult<Patient>
+  ```
+
+  **Query key:** `['patient', id]`
+
+  <ParamField path="id" type="string | undefined | null" required>
+    Patient UUID. The hook is a no-op when falsy.
+  </ParamField>
+</Accordion>
+
+<Accordion title="usePatientCount()">
+  Returns the total number of patients as a plain `number` using a `count: 'exact'` head query — no rows are transferred.
+
+  ```typescript
+  function usePatientCount(): UseQueryResult<number>
+  ```
+
+  **Query key:** `['patients_count']`
+</Accordion>
+
+<Accordion title="usePatientsGrowth()">
+  Returns `{ created_at: string }[]` for all patients created within the last 14 days. Intended for sparkline / growth charts on the dashboard.
+
+  ```typescript
+  function usePatientsGrowth(): UseQueryResult<{ created_at: string }[]>
+  ```
+
+  **Query key:** `['patients_growth']`
+</Accordion>
+
+<Accordion title="usePatientsCountByDateRange(from?, to?)">
+  Returns the patient count for an optional date window. Both bounds are inclusive. `to` is automatically padded to `T23:59:59.999Z`.
+
+  ```typescript
+  function usePatientsCountByDateRange(
+    from?: string, // ISO date string, e.g. "2024-01-01"
+    to?: string    // ISO date string, e.g. "2024-12-31"
+  ): UseQueryResult<number>
+  ```
+
+  **Query key:** `['patients_count_range', from, to]`
+</Accordion>
+
+<Accordion title="useRecentPatients(limit?)">
+  Returns the most recently *updated* patients, ordered by `updated_at` descending. Defaults to 5 records.
+
+  ```typescript
+  function useRecentPatients(limit?: number): UseQueryResult<Patient[]>
+  // Default: limit = 5
+  ```
+
+  **Query key:** `['patients_recent', limit]`
+</Accordion>
+
+<Accordion title="usePaginatedPatients(page, pageSize, search?, status?)">
+  Server-side paginated query with optional full-text search and status filter. Returns both the data page and the total count.
+
+  ```typescript
+  function usePaginatedPatients(
+    page: number,
+    pageSize: number,
+    search?: string,       // matches full_name, email, or document_id (case-insensitive)
+    status?: PatientStatus // "activo" | "en_tratamiento" | "alta" | "nuevo"
+  ): UseQueryResult<{ data: Patient[]; count: number }>
+  ```
+
+  **Query key:** `['patients_paginated', page, pageSize, search, status]`
+
+  The search filter uses Supabase's `.or()` with `ilike` across `full_name`, `email`, and `document_id`.
+</Accordion>
+
+### Mutation Hooks
+
+<Accordion title="useCreatePatient()">
+  Inserts a new patient after validating uniqueness of both `document_id` and `full_name` against existing records. Throws a descriptive Spanish-language error if either check fails, so the calling component can surface it directly to the user.
+
+  ```typescript
+  function useCreatePatient(): UseMutationResult<
+    Patient,
+    Error,
+    Partial<PatientInput> & { full_name: string; assigned_doctor_id: string }
+  >
+  ```
+
+  **Optimistic update:** Prepends a temporary record to `['patients_paginated']` and `['patients_recent']` caches.
+
+  **On settled:** Invalidates `['patients']`, `['patient']`, `['patients_count']`, `['patients_paginated']`, `['patients_recent']`.
+</Accordion>
+
+<Accordion title="useUpdatePatient()">
+  Patches an existing patient record, applying the same uniqueness validations (excluding the current patient's own `id`).
+
+  ```typescript
+  function useUpdatePatient(): UseMutationResult<
+    Patient,
+    Error,
+    Partial<PatientInput> & { id: string }
+  >
+  ```
+
+  **Optimistic update:** Updates the matching row in `['patients_paginated']`, `['patients_recent']`, and the individual `['patient', id]` cache entry.
+
+  **On settled:** Invalidates the same key families as `useCreatePatient`, plus `['patient', variables.id]`.
+</Accordion>
+
+<Accordion title="useDeletePatient()">
+  Deletes a patient by UUID. The optimistic update removes the row from all paginated and recent caches immediately.
+
+  ```typescript
+  function useDeletePatient(): UseMutationResult<void, Error, string>
+  //                                                             ^ patient UUID
+  ```
+
+  **On settled:** Invalidates patient key families **and** `['appointments']` to clear any appointment data that joined the deleted patient.
+</Accordion>
+
+---
+
+## Appointment Hooks
+
+Exported from `src/lib/api/appointments.ts`. Reads from the `appointments` table with a join to `patients` and `consultations`.
+
+### Types
+
+```typescript
+type AppointmentStatus = "programada" | "completada" | "cancelada";
+
+interface AppointmentFilters {
+  from?: string;  // ISO datetime lower bound (scheduled_at >=)
+  to?: string;    // ISO date — padded to T23:59:59.999Z
+  status?: string;
+  limit?: number;
+}
+
+interface AppointmentWithPatient extends Appointment {
+  patient_name?: string;     // joined from patients.full_name
+  has_consultation?: boolean; // true if at least one consultation row exists
+}
+```
+
+### Hooks
+
+<Accordion title="useAppointments(filters?)">
+  Returns appointments matching the optional filters, ordered by `scheduled_at` descending. Joins `patients(full_name)` and `consultations(id)` to populate `patient_name` and `has_consultation`.
+
+  ```typescript
+  function useAppointments(
+    filters?: AppointmentFilters
+  ): UseQueryResult<AppointmentWithPatient[]>
+  ```
+
+  **Query key:** `['appointments']` (no filters) or `['appointments', filters]`
+</Accordion>
+
+<Accordion title="useCreateAppointment()">
+  Inserts a new appointment. Sets `created_by` to the authenticated user's ID automatically.
+
+  ```typescript
+  function useCreateAppointment(): UseMutationResult<Appointment, Error, AppointmentInput>
+  ```
+
+  **On success:** Invalidates `['appointments']`.
+</Accordion>
+
+<Accordion title="useUpdateAppointment()">
+  Applies a partial patch to an existing appointment. Accepts any subset of `AppointmentInput` fields alongside the required `id`.
+
+  ```typescript
+  function useUpdateAppointment(): UseMutationResult<
+    Appointment,
+    Error,
+    Partial<AppointmentInput> & { id: string }
+  >
+  ```
+
+  **On success:** Invalidates `['appointments']`.
+</Accordion>
+
+<Accordion title="useDeleteAppointment()">
+  Deletes an appointment by UUID.
+
+  ```typescript
+  function useDeleteAppointment(): UseMutationResult<void, Error, string>
+  //                                                              ^ appointment UUID
+  ```
+
+  **On success:** Invalidates `['appointments']`.
+</Accordion>
+
+---
+
+## Consultation Hooks
+
+Exported from `src/lib/api/consultations.ts`. Reads from `consultations`, with RPCs for create and update to handle the related `consultation_consumables` rows atomically.
+
+### Types
+
+```typescript
+type VisitType =
+  | "CONTROL"
+  | "EMERGENCIA"
+  | "CONSULTA_NUEVA"
+  | "POST_TRATAMIENTO"
+  | "OTRO";
+
+interface ConsultationConsumable {
+  id?: string;
+  consultation_id?: string;
+  item_name: string;
+  quantity: number;
+  unit: string | null;
+}
+
+interface ConsultationFilters {
+  from?: string; // created_at >=
+  to?: string;   // created_at <= (padded to T23:59:59.999Z)
+}
+```
+
+### Query Hooks
+
+<Accordion title="useConsultations(filters?)">
+  Returns a lightweight list of consultations (selected fields only: `id`, `appointment_id`, `patient_id`, `doctor_id`, `visit_type`, `is_first_visit`, `diagnosis`, `contact_channel`, `created_at`, `indications`, and the joined `patient_name`), ordered by `created_at` descending.
+
+  ```typescript
+  function useConsultations(
+    filters?: ConsultationFilters
+  ): UseQueryResult<Consultation[]>
+  ```
+
+  **Query key:** `['consultations']` or `['consultations', filters]`
+</Accordion>
+
+<Accordion title="usePatientConsultations(patientId)">
+  Fetches the full consultation record (`*`) for a single patient, including the related `consultation_consumables` rows. Disabled when `patientId` is falsy.
+
+  ```typescript
+  function usePatientConsultations(
+    patientId: string | undefined
+  ): UseQueryResult<Consultation[]>
+  ```
+
+  **Query key:** `['consultations', 'patient', patientId]`
+
+  Each returned item has `consumables: ConsultationConsumable[]` populated from the join.
+</Accordion>
+
+<Accordion title="useConsultationByAppointment(appointmentId)">
+  Fetches the single consultation linked to an appointment, or `null` if none exists. Uses `.maybeSingle()` so a missing row is not treated as an error. Disabled when `appointmentId` is falsy.
+
+  ```typescript
+  function useConsultationByAppointment(
+    appointmentId: string | undefined
+  ): UseQueryResult<Consultation | null>
+  ```
+
+  **Query key:** `['consultation', appointmentId]`
+</Accordion>
+
+### Mutation Hooks
+
+<Accordion title="useCreateConsultation()">
+  Creates a consultation and its associated consumables atomically via the `create_consultation_rpc` Supabase RPC. Consumables are passed in the `ConsultationInput.consumables` array and handled inside the RPC.
+
+  ```typescript
+  function useCreateConsultation(): UseMutationResult<Consultation, Error, ConsultationInput>
+  ```
+
+  **Optimistic update:** Prepends an optimistic consultation to `['consultations']`, `['consultations', 'patient', patientId]`, and sets `['consultation', appointmentId]`.
+
+  **On settled:** Invalidates `['consultations']`, `['consultation', appointmentId]`, `['consultations', 'patient', patientId]`, `['appointments']`, `['patients']`, and `['clinical_notes']`.
+</Accordion>
+
+<Accordion title="useUpdateConsultation()">
+  Updates a consultation and replaces its consumables atomically via `update_consultation_rpc`. Pass the consultation `id` alongside any partial `ConsultationInput` fields to patch, plus an optional updated `consumables` array.
+
+  ```typescript
+  function useUpdateConsultation(): UseMutationResult<
+    Consultation,
+    Error,
+    Partial<ConsultationInput> & { id: string }
+  >
+  ```
+
+  **Optimistic update:** Updates matching rows in `['consultations']`, `['consultations', 'patient']`, and `['consultation', appointmentId]`.
+
+  **On settled:** Invalidates the same key families as `useCreateConsultation`.
+</Accordion>
+
+### Prescription Template Hooks
+
+<Accordion title="usePrescriptionTemplates()">
+  Returns all saved prescription templates ordered alphabetically by `title`. Templates are shared across all doctors in the practice.
+
+  ```typescript
+  function usePrescriptionTemplates(): UseQueryResult<PrescriptionTemplate[]>
+  ```
+
+  **Query key:** `['prescription_templates']`
+</Accordion>
+
+<Accordion title="useCreatePrescriptionTemplate()">
+  Saves a new prescription template. Sets `created_by` to the authenticated user's ID.
+
+  ```typescript
+  function useCreatePrescriptionTemplate(): UseMutationResult<
+    PrescriptionTemplate,
+    Error,
+    { title: string; indications: string }
+  >
+  ```
+
+  **On success:** Invalidates `['prescription_templates']`.
+</Accordion>
+
+<Accordion title="useDeletePrescriptionTemplate()">
+  Deletes a prescription template by UUID.
+
+  ```typescript
+  function useDeletePrescriptionTemplate(): UseMutationResult<void, Error, string>
+  //                                                                        ^ template UUID
+  ```
+
+  **On success:** Invalidates `['prescription_templates']`.
+</Accordion>
+
+---
+
+## Clinical Notes Hooks
+
+Exported from `src/lib/api/clinical-notes.ts`. Notes are scoped to a single patient and can carry file attachments stored in the `clinical-attachments` Supabase Storage bucket.
+
+### Types
+
+```typescript
+interface ClinicalAttachment {
+  path: string;  // storage object path, e.g. "{patientId}/{timestamp}_{random}_{filename}"
+  name: string;  // original filename
+  type: string;  // MIME type
+  size: number;  // bytes
+}
+
+interface ClinicalNote {
+  id: string;
+  patient_id: string;
+  author_id: string | null;
+  title: string;
+  content: string;
+  note_date: string;
+  attachments: ClinicalAttachment[];
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### Hooks
+
+<Accordion title="useClinicalNotes(patientId)">
+  Returns all clinical notes for a patient, ordered by `note_date` descending. The `attachments` field is always an array (never `null`). The hook is disabled when `patientId` is falsy.
+
+  ```typescript
+  function useClinicalNotes(
+    patientId: string | undefined
+  ): UseQueryResult<ClinicalNote[]>
+  ```
+
+  **Query key:** `['clinical_notes', patientId]`
+</Accordion>
+
+<Accordion title="useCreateClinicalNote()">
+  Inserts a new clinical note. Pass pre-uploaded attachment metadata in `attachments` (use `uploadClinicalAttachments` first). Sets `author_id` to the authenticated user's ID.
+
+  ```typescript
+  function useCreateClinicalNote(): UseMutationResult<ClinicalNote, Error, ClinicalNoteInput>
+
+  type ClinicalNoteInput = {
+    patient_id: string;
+    title: string;
+    content?: string;
+    note_date?: string;
+    attachments?: ClinicalAttachment[];
+  };
+  ```
+
+  **On success:** Invalidates `['clinical_notes', patient_id]`.
+</Accordion>
+
+<Accordion title="useDeleteClinicalNote()">
+  Deletes a clinical note and removes all associated files from Supabase Storage in a single operation.
+
+  ```typescript
+  function useDeleteClinicalNote(): UseMutationResult<
+    void,
+    Error,
+    { id: string; patient_id: string; attachments?: ClinicalAttachment[] }
+  >
+  ```
+
+  Storage files are deleted via `supabase.storage.from('clinical-attachments').remove(paths)` before the database row is deleted.
+
+  **On success:** Invalidates `['clinical_notes', patient_id]`.
+</Accordion>
+
+### Utility Functions
+
+These are plain `async` functions, not hooks — call them directly without `useQuery` / `useMutation`.
+
+<Accordion title="uploadClinicalAttachments(patientId, files)">
+  Uploads an array of `File` objects to the `clinical-attachments` bucket. Each file is stored at a unique path: `{patientId}/{timestamp}_{random}_{sanitized_filename}`. Returns the metadata array suitable for passing directly to `useCreateClinicalNote`.
+
+  ```typescript
+  async function uploadClinicalAttachments(
+    patientId: string,
+    files: File[]
+  ): Promise<ClinicalAttachment[]>
+  ```
+
+  Throws on the first upload error.
+</Accordion>
+
+<Accordion title="getAttachmentUrl(path)">
+  Generates a 30-minute signed URL for a storage object. Use this to produce time-limited download links rather than exposing storage paths directly.
+
+  ```typescript
+  async function getAttachmentUrl(path: string): Promise<string>
+  ```
+
+  The expiry is 30 minutes (`60 * 30` seconds). For longer-lived links (e.g. WhatsApp sharing), the prescription PDF flow uses a 7-day TTL instead.
+</Accordion>
+
+---
+
+## Profile Hooks
+
+Exported from `src/lib/api/profiles.ts`. Profiles correspond to authenticated users and store the doctor's credentials used in PDF documents.
+
+### Types
+
+```typescript
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  specialty: string | null;
+  avatar_url: string | null;
+  university?: string | null;
+  mpps?: string | null;
+  cmc?: string | null;
+}
+
+interface ProfileWithRoles extends Profile {
+  roles: ("admin" | "doctor")[];
+}
+```
+
+### Hooks
+
+<Accordion title="useMyProfile(userId)">
+  Fetches the profile for a specific user ID using `.maybeSingle()`, so it returns `null` rather than throwing when no profile row exists. Disabled when `userId` is falsy.
+
+  ```typescript
+  function useMyProfile(
+    userId: string | undefined
+  ): UseQueryResult<Profile | null>
+  ```
+
+  **Query key:** `['profile', userId]`
+</Accordion>
+
+<Accordion title="useDoctors()">
+  Returns profiles that hold the `doctor` role by first reading `user_roles` and then fetching matching profile rows. Returns an empty array when no doctors are found.
+
+  ```typescript
+  function useDoctors(): UseQueryResult<Profile[]>
+  ```
+
+  **Query key:** `['doctors']`
+</Accordion>
+
+<Accordion title="useAllProfilesWithRoles()">
+  Admin-only hook. Fetches all profiles and all role assignments, then merges them client-side. Each returned item includes a `roles` array with zero or more of `"admin"` and `"doctor"`.
+
+  ```typescript
+  function useAllProfilesWithRoles(): UseQueryResult<ProfileWithRoles[]>
+  ```
+
+  **Query key:** `['profiles_with_roles']`
+</Accordion>
+
+<Accordion title="useToggleRole()">
+  Grants or revokes an `admin` or `doctor` role for a user. Inserting a duplicate role (enabling when already enabled) is silently ignored.
+
+  ```typescript
+  function useToggleRole(): UseMutationResult<
+    void,
+    Error,
+    { userId: string; role: "admin" | "doctor"; enable: boolean }
+  >
+  ```
+
+  **On success:** Invalidates `['profiles_with_roles']`, `['doctors']`, and `['user_roles']`.
+</Accordion>
+
+<Accordion title="useUpdateProfile()">
+  Updates a user's display name, specialty, university, MPPS, and CMC. Empty strings are coerced to `null` before the update. These fields feed directly into all PDF document signature blocks.
+
+  ```typescript
+  function useUpdateProfile(): UseMutationResult<
+    void,
+    Error,
+    {
+      userId: string;
+      fullName: string;
+      specialty: string | null;
+      university: string | null;
+      mpps: string | null;
+      cmc: string | null;
+    }
+  >
+  ```
+
+  **On success:** Invalidates `['profile', userId]`, `['profiles_with_roles']`, and `['doctors']`.
+</Accordion>
+
+---
+
+## Clinic Info Hooks
+
+Exported from `src/lib/api/clinic.ts`. The clinic info table contains exactly one row (`id = 1`) that holds the address and contact details printed on every PDF document.
+
+### Types
+
+```typescript
+interface ClinicInfo {
+  id: number;          // always 1
+  name: string;
+  address_line1: string;
+  address_line2: string;
+  phone: string;
+  rif: string;
+  updated_at: string;
+}
+```
+
+### Hooks
+
+<Accordion title="useClinicInfo()">
+  Fetches the single clinic configuration row using `.single()`. Throws if no row is found.
+
+  ```typescript
+  function useClinicInfo(): UseQueryResult<ClinicInfo>
+  ```
+
+  **Query key:** `['clinic_info']`
+</Accordion>
+
+<Accordion title="useUpdateClinicInfo()">
+  Patches any subset of `ClinicInfo` fields (except `id` and `updated_at`). `updated_at` is automatically set to the current timestamp.
+
+  ```typescript
+  function useUpdateClinicInfo(): UseMutationResult<
+    void,
+    Error,
+    Partial<Omit<ClinicInfo, "id" | "updated_at">>
+  >
+  ```
+
+  **On success:** Invalidates `['clinic_info']`.
+</Accordion>
+
+---
+
+## Auth Hooks
+
+Exported from `src/hooks/useAuth.ts`. These hooks manage Supabase authentication state and role-based access control.
+
+### Types
+
+```typescript
+type AppRole = "admin" | "doctor";
+
+interface AuthState {
+  session: Session | null;
+  user: User | null;
+  loading: boolean;
+}
+```
+
+### Hooks
+
+<Accordion title="useAuthSession()">
+  Subscribes to Supabase `onAuthStateChange` and returns the current auth state. Returns `loading: true` on the initial render until the session is confirmed.
+
+  ```typescript
+  function useAuthSession(): AuthState
+  ```
+
+  This is a plain React hook (not React Query) — it uses `useState` and `useEffect` internally to manage the Supabase auth subscription. The subscription is cleaned up automatically on unmount.
+</Accordion>
+
+<Accordion title="useRoles()">
+  Fetches the `user_roles` rows for the currently authenticated user. Returns an array of `AppRole` values. The query is disabled when no user is logged in.
+
+  ```typescript
+  function useRoles(): UseQueryResult<AppRole[]>
+  ```
+
+  **Query key:** `['user_roles', user.id]`
+</Accordion>
+
+<Accordion title="useIsAdmin()">
+  Convenience boolean derived from `useRoles()`. Returns `true` when the current user's roles include `"admin"`.
+
+  ```typescript
+  function useIsAdmin(): boolean
+  ```
+</Accordion>
+
+---
+
+## Theme Hook
+
+Exported from `src/hooks/useTheme.ts`. Manages the light / dark theme preference using `localStorage` and the system `prefers-color-scheme` media query as a default.
+
+<Accordion title="useTheme()">
+  Reads the stored theme from `localStorage` on first render, falling back to the OS preference. Applies the `"dark"` class to `document.documentElement` reactively when the theme is `"dark"`, and removes it when `"light"`.
+
+  ```typescript
+  function useTheme(): {
+    theme: "light" | "dark";
+    toggleTheme: () => void;
+    isDark: boolean;
+  }
+  ```
+
+  **`theme`** — current theme value.
+
+  **`toggleTheme()`** — switches between `"light"` and `"dark"` and persists the choice to `localStorage`.
+
+  **`isDark`** — shorthand boolean for conditional rendering and icon toggling.
+</Accordion>
+
+---
+
+## Realtime Sync
+
+Exported from `src/hooks/useRealtimeSync.ts`. This hook is called **once** at the root of the authenticated layout, not in individual page components.
+
+<Accordion title="useRealtimeSync()">
+  Opens five Supabase Realtime channels that listen for `postgres_changes` events (`INSERT`, `UPDATE`, `DELETE`) on the core tables and automatically invalidate the corresponding React Query caches.
+
+  ```typescript
+  function useRealtimeSync(): void
+  ```
+
+  | Channel | Table | Invalidated query keys |
+  |---|---|---|
+  | `patients-realtime` | `patients` | `['patients']`, `['patient']`, `['patients_count']`, `['patients_paginated']`, `['patients_recent']` |
+  | `appointments-realtime` | `appointments` | `['appointments']`, `['appointments_growth']`, `['patients_count']`, `['patients_count_range']` |
+  | `consultations-realtime` | `consultations` | `['consultations']`, `['consultation']`, `['appointments']` |
+  | `clinical-notes-realtime` | `clinical_notes` | `['clinical_notes']` |
+  | `templates-realtime` | `prescription_templates` | `['prescription_templates']` |
+
+  All five channels are unsubscribed and removed when the component unmounts (`supabase.removeChannel`).
+</Accordion>

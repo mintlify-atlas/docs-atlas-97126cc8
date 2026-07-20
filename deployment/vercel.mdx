@@ -1,0 +1,99 @@
+---
+title: "Deploy FemeSalud to Vercel with TanStack Start"
+sidebarTitle: "Vercel"
+description: "Deploy FemeSalud to Vercel using TanStack Start and Nitro. Set environment variables, trigger automatic deployments from git push, and serve SSR from Vercel Serverless Functions."
+---
+
+FemeSalud is built with TanStack Start and Nitro, making Vercel the natural deployment target. Nitro compiles the application into serverless functions that Vercel executes on every request, giving you full SSR with zero cold-start configuration. A single `vercel.json` file at the project root is all Vercel needs to understand the build.
+
+## vercel.json Configuration
+
+The project's `vercel.json` uses the `tanstack-start` framework preset:
+
+```json vercel.json
+{
+  "framework": "tanstack-start"
+}
+```
+
+This single line tells Vercel to activate the TanStack Start build pipeline. Internally, Vercel hands off the build to the Nitro adapter configured in `vite.config.ts` with `preset: "vercel"`. Nitro then produces framework-aware serverless function bundles and static assets under `.vercel/output/`, the directory Vercel reads automatically at deploy time — no custom output directory configuration needed.
+
+## Build Command
+
+Vercel calls the project's build script once the framework preset is detected:
+
+```bash
+bun run build
+```
+
+You can also use `npm run build` if you're not using Bun. Both invoke `vite build`, which activates the Nitro Vercel preset and writes all deployment artifacts to `.vercel/output/`. You do not need to configure the build command manually in the Vercel dashboard; the `tanstack-start` preset sets it for you.
+
+## Environment Variables on Vercel
+
+FemeSalud requires four environment variables to connect to Supabase. Add all four in the Vercel dashboard under **Settings → Environment Variables** before your first deployment.
+
+| Variable | Where it's used |
+| --- | --- |
+| `VITE_SUPABASE_URL` | Client-side Supabase client initialization |
+| `VITE_SUPABASE_ANON_KEY` | Client-side anonymous authentication |
+| `SUPABASE_URL` | Server-side API calls and middleware |
+| `SUPABASE_PUBLISHABLE_KEY` | Server-side publishable key for auth attachment |
+
+<Warning>
+  Never commit a `.env` file containing real Supabase credentials to git. Add `.env` and `.env.local` to your `.gitignore`. Credentials exposed in version control cannot be safely rotated by simply deleting the commit — treat any leaked key as permanently compromised.
+</Warning>
+
+<Tip>
+  Vercel lets you scope environment variables to **Production**, **Preview**, and **Development** environments independently. Use your production Supabase project for the Production scope and a separate staging Supabase project for Preview deployments. This keeps PR previews from touching live patient data.
+</Tip>
+
+## Automatic Deployments
+
+Connecting your GitHub repository to Vercel enables fully automated deployments on every push.
+
+<Steps>
+  <Step title="Connect your GitHub repository">
+    In the Vercel dashboard, click **Add New → Project** and import the `femesalud-zen-flow` repository from GitHub. Vercel requests read access to detect pushes and open pull requests.
+  </Step>
+  <Step title="Vercel detects the framework">
+    During import, Vercel reads `vercel.json` and identifies `tanstack-start` as the framework. The build command, output directory, and Nitro adapter settings are all configured automatically — no manual overrides required.
+  </Step>
+  <Step title="Push to main triggers a production build">
+    Every `git push origin main` starts a new production deployment. Vercel runs `bun run build`, Nitro compiles the serverless output, and the new version goes live at your production URL in seconds.
+  </Step>
+  <Step title="Deployment goes live">
+    Once the build completes, Vercel atomically promotes the new deployment. The previous version remains available for instant rollback from the Vercel dashboard if needed.
+  </Step>
+</Steps>
+
+## Preview Deployments
+
+Every pull request opened against `main` automatically receives its own unique preview URL — for example, `femesalud-zen-flow-git-feat-branch-your-org.vercel.app`. Preview deployments run the full SSR build with their own scoped environment variables, so you can share a working link with reviewers before merging. Closing or merging the PR retires the preview URL.
+
+## SSR Architecture
+
+TanStack Start uses Nitro as its server runtime. On each incoming request, Nitro invokes the server entry at `src/server.ts`, which loads the TanStack Start server entry and passes the request through. TanStack Start then runs the matched route's server-side logic, renders the React tree to HTML, and streams the response — all inside a Vercel Serverless Function.
+
+Authentication-guarded routes use `ssr: false` in their route configuration. This intentionally skips server rendering for those pages: they ship as a minimal HTML shell and hydrate fully on the client. The tradeoff is correct — there is no public content to pre-render for auth-protected views, and client-only hydration avoids exposing session state in server-rendered HTML.
+
+## Production Checklist
+
+Before pointing your domain at the production deployment, verify the following:
+
+<Steps>
+  <Step title="All four environment variables are set in Vercel">
+    Confirm `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY` are present in **Settings → Environment Variables** for the Production scope.
+  </Step>
+  <Step title="Supabase CORS allows your Vercel domain">
+    In the Supabase dashboard, go to **Authentication → URL Configuration** and add your Vercel production URL (e.g. `https://femesalud.vercel.app`) to the list of allowed redirect URLs and site URLs.
+  </Step>
+  <Step title="At least one admin user exists in user_roles">
+    FemeSalud's Row Level Security policies gate admin-only features on rows in the `user_roles` table. Insert a record with `role = 'admin'` for the first operator account before trying to access the admin panel.
+  </Step>
+  <Step title="A clinic_info row exists with id = 1">
+    The dashboard reads clinic details from `clinic_info WHERE id = 1`. Create this row in Supabase before the first login to avoid blank header states.
+  </Step>
+  <Step title="The clinical-attachments storage bucket is created">
+    Clinical document uploads use the `clinical-attachments` bucket in Supabase Storage. Create the bucket and apply the appropriate RLS policies so authenticated users can upload and doctors can retrieve files.
+  </Step>
+</Steps>
